@@ -1,0 +1,17 @@
+{
+  "schema_version": "1",
+  "data_classification": "synthetic_only",
+  "corpus_version": "ambiguous-routing.v1",
+  "file": "ambiguous-routing.v1.jsonl",
+  "sha256": "48d3e98ab39263fa5433f54ee198ff098fadc2b5669e1ad5e88d75458ee6a0d5",
+  "production_invocation_binding": "44fbedf5653ea26b8094ed56d714e3d3bbebad9ad91b0e890a1da9053375fd04",
+  "token_counter_version": "fallback-v1",
+  "total_cases": 128,
+  "group_counts": {
+    "ambiguous": 64,
+    "deterministic": 24,
+    "resume": 16,
+    "adversarial": 16,
+    "tokenizer_stress": 8
+  }
+}
