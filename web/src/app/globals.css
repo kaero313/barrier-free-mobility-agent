@@ -1,0 +1,167 @@
+@import "../theme/tokens.css";
+
+@layer reset, base, utilities;
+
+@layer reset {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    min-block-size: 100%;
+  }
+
+  body,
+  h1,
+  h2,
+  h3,
+  p {
+    margin: 0;
+  }
+
+  img,
+  picture,
+  svg {
+    display: block;
+    max-inline-size: 100%;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    color: inherit;
+    font: inherit;
+  }
+}
+
+@layer base {
+  html {
+    background: var(--color-surface-canvas);
+    color: var(--color-text-primary);
+    font-family: var(--font-sans);
+    font-size: 100%;
+    line-height: var(--line-height-body);
+    scroll-padding-block-start: var(--space-6);
+    text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--color-surface-canvas);
+    color: var(--color-text-primary);
+    font-size: var(--font-size-body);
+    font-synthesis: none;
+    min-block-size: 100dvh;
+    overflow-wrap: anywhere;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3 {
+    color: var(--color-text-primary);
+    font-weight: 750;
+    letter-spacing: -0.025em;
+    line-height: var(--line-height-compact);
+    text-wrap: balance;
+  }
+
+  h1 {
+    font-size: clamp(var(--font-size-heading-medium), 4vw, var(--font-size-heading-large));
+  }
+
+  h2 {
+    font-size: var(--font-size-heading-medium);
+  }
+
+  h3 {
+    font-size: var(--font-size-heading-small);
+  }
+
+  a {
+    color: var(--color-text-link);
+    font-weight: 600;
+    text-decoration-thickness: 0.1em;
+    text-underline-offset: 0.18em;
+    transition:
+      color var(--motion-fast) ease,
+      text-decoration-thickness var(--motion-fast) ease;
+  }
+
+  a:hover {
+    text-decoration-thickness: 0.16em;
+  }
+
+  :where(a, button, input, select, summary, textarea, [tabindex]):focus-visible {
+    outline: var(--focus-width) solid var(--focus-ring);
+    outline-offset: 4px;
+  }
+
+  :where(button, input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+    min-block-size: var(--control-min-height);
+  }
+
+  :where(input, select, textarea) {
+    accent-color: var(--color-brand);
+    caret-color: var(--color-brand);
+  }
+
+  :where(input, textarea)::placeholder {
+    color: var(--color-text-secondary);
+    opacity: 0.88;
+  }
+
+  :where(button, [role="button"])[aria-disabled="true"] {
+    cursor: not-allowed;
+    opacity: 0.72;
+  }
+
+  ::selection {
+    background: var(--color-brand-subtle);
+    color: var(--color-text-primary);
+  }
+}
+
+@layer utilities {
+  .visually-hidden {
+    block-size: 1px !important;
+    border: 0 !important;
+    clip: rect(0 0 0 0) !important;
+    clip-path: inset(50%) !important;
+    inline-size: 1px !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+    position: absolute !important;
+    white-space: nowrap !important;
+  }
+
+  .eyebrow {
+    color: var(--color-brand);
+    font-size: var(--font-size-caption);
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    margin-block-end: var(--space-2);
+    text-transform: uppercase;
+  }
+
+  .lede {
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-body-large);
+    margin-block-start: var(--space-4);
+    max-inline-size: var(--reading-max-width);
+  }
+}
+
+@media (forced-colors: active) {
+  body {
+    background: Canvas;
+  }
+
+  :where(a, button, input, select, summary, textarea, [tabindex]):focus-visible {
+    outline-color: Highlight;
+  }
+}

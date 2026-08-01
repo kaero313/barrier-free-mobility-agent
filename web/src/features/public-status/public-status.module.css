@@ -1,0 +1,151 @@
+.statusPanel,
+.supportPanel {
+  background: var(--color-surface-default);
+  border: var(--border-width-default) solid var(--color-border-default);
+  border-radius: var(--radius-large);
+  box-shadow: var(--shadow-card);
+  display: grid;
+  gap: var(--space-6);
+  padding: clamp(var(--space-5), 4vw, var(--space-8));
+}
+
+.statusHeader,
+.supportHeading {
+  align-items: flex-start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  justify-content: space-between;
+}
+
+.statusColumns {
+  display: grid;
+  gap: var(--space-6);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.statusGroup {
+  border-block-start: var(--border-width-default) solid var(--color-border-subtle);
+  display: grid;
+  gap: var(--space-4);
+  padding-block-start: var(--space-5);
+}
+
+.statusList {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.statusRow {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: space-between;
+}
+
+.statusRow dt {
+  font-weight: 650;
+}
+
+.statusRow dd {
+  margin: 0;
+}
+
+.statusMessage,
+.stateMessage,
+.availabilityMessage {
+  color: var(--color-text-secondary);
+}
+
+.stateMessage {
+  align-items: flex-start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.checkedAt {
+  border-block-start: var(--border-width-default) solid var(--color-border-subtle);
+  color: var(--color-text-secondary);
+  padding-block-start: var(--space-4);
+}
+
+.actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.actions button,
+.actions a {
+  align-items: center;
+  border: var(--border-width-default) solid var(--color-border-control);
+  border-radius: var(--radius-medium);
+  display: inline-flex;
+  font-weight: 700;
+  justify-content: center;
+  min-block-size: var(--target-min-height);
+  padding: var(--space-2) var(--space-4);
+}
+
+.actions button {
+  background: var(--color-surface-default);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.actions a {
+  background: var(--color-brand);
+  border-color: var(--color-brand);
+  color: var(--color-brand-foreground);
+  text-decoration: none;
+}
+
+.supportPanel {
+  box-shadow: none;
+}
+
+.supportHeading a {
+  align-items: center;
+  display: inline-flex;
+  min-block-size: var(--target-min-height);
+}
+
+.facilityAvailability {
+  background: var(--color-status-success-background);
+  border-inline-start: var(--border-width-strong) solid var(--color-status-success-border);
+  color: var(--color-status-success-foreground);
+  padding: var(--space-3) var(--space-4);
+}
+
+@media (max-width: 48rem) {
+  .statusColumns {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 40rem) {
+  .actions,
+  .actions a,
+  .actions button {
+    inline-size: 100%;
+  }
+}
+
+@media (forced-colors: active) {
+  .statusPanel,
+  .supportPanel {
+    box-shadow: none;
+  }
+
+  .actions a,
+  .actions button,
+  .facilityAvailability {
+    background: Canvas;
+    border-color: ButtonText;
+    color: CanvasText;
+  }
+}

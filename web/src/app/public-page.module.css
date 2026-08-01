@@ -1,0 +1,193 @@
+.page {
+  display: grid;
+  gap: clamp(var(--space-10), 7vw, var(--space-16));
+  inline-size: min(100%, 75rem);
+  margin-inline: auto;
+  padding-block: clamp(var(--space-4), 4vw, var(--space-10));
+}
+
+.hero,
+.pageHeader {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.hero {
+  padding-block: clamp(var(--space-6), 5vw, var(--space-12));
+}
+
+.hero h1,
+.pageHeader h1 {
+  max-inline-size: 22ch;
+}
+
+.heroText,
+.pageHeaderText {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-body-large);
+  max-inline-size: var(--reading-max-width);
+}
+
+.actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.primaryAction,
+.secondaryAction {
+  align-items: center;
+  border: var(--border-width-default) solid var(--color-border-control);
+  border-radius: var(--radius-medium);
+  display: inline-flex;
+  font-weight: 700;
+  justify-content: center;
+  min-block-size: var(--target-min-height);
+  padding: var(--space-2) var(--space-5);
+  text-decoration: none;
+}
+
+.primaryAction {
+  background: var(--color-brand);
+  border-color: var(--color-brand);
+  color: var(--color-brand-foreground);
+}
+
+.primaryAction:hover {
+  background: var(--color-brand-hover);
+}
+
+.secondaryAction {
+  background: var(--color-surface-default);
+  color: var(--color-text-primary);
+}
+
+.section {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.sectionHeader {
+  display: grid;
+  gap: var(--space-3);
+  max-inline-size: var(--reading-max-width);
+}
+
+.sectionHeader p,
+.prose p,
+.prose li {
+  color: var(--color-text-secondary);
+}
+
+.cardGrid,
+.stepList {
+  display: grid;
+  gap: var(--space-5);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.cardGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.stepList {
+  counter-reset: public-step;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.card,
+.step {
+  background: var(--color-surface-default);
+  border: var(--border-width-default) solid var(--color-border-subtle);
+  border-radius: var(--radius-large);
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-6);
+}
+
+.card h3,
+.step h2,
+.step h3 {
+  font-size: var(--font-size-heading-small);
+}
+
+.step {
+  counter-increment: public-step;
+}
+
+.step::before {
+  align-items: center;
+  background: var(--color-status-info-background);
+  border: var(--border-width-default) solid var(--color-status-info-border);
+  border-radius: var(--radius-pill);
+  color: var(--color-status-info-foreground);
+  content: counter(public-step);
+  display: inline-flex;
+  font-weight: 800;
+  inline-size: 2rem;
+  justify-content: center;
+  min-block-size: 2rem;
+}
+
+.prose {
+  display: grid;
+  gap: var(--space-5);
+  max-inline-size: var(--reading-max-width);
+}
+
+.prose ul {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding-inline-start: var(--space-6);
+}
+
+.notice {
+  background: var(--color-status-info-background);
+  border: var(--border-width-default) solid var(--color-status-info-border);
+  border-radius: var(--radius-medium);
+  color: var(--color-status-info-foreground);
+  padding: var(--space-5);
+}
+
+.feedbackNotice {
+  background: var(--color-status-unknown-background);
+  border: var(--border-width-default) solid var(--color-status-unknown-border);
+  border-radius: var(--radius-medium);
+  color: var(--color-status-unknown-foreground);
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-5);
+}
+
+@media (max-width: 48rem) {
+  .cardGrid,
+  .stepList {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 40rem) {
+  .actions,
+  .primaryAction,
+  .secondaryAction {
+    inline-size: 100%;
+  }
+}
+
+@media (forced-colors: active) {
+  .card,
+  .feedbackNotice,
+  .notice,
+  .primaryAction,
+  .secondaryAction,
+  .step,
+  .step::before {
+    background: Canvas;
+    border-color: ButtonText;
+    color: CanvasText;
+  }
+}

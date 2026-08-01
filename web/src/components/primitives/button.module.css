@@ -1,0 +1,108 @@
+.button {
+  align-items: center;
+  border: var(--border-width-strong) solid transparent;
+  border-radius: var(--radius-medium);
+  cursor: pointer;
+  display: inline-flex;
+  box-shadow: var(--shadow-control);
+  font-weight: 700;
+  gap: var(--space-2);
+  justify-content: center;
+  min-block-size: var(--control-min-height);
+  min-inline-size: var(--target-min-width);
+  padding: var(--space-2) var(--space-4);
+  text-align: center;
+  text-decoration: none;
+  transition:
+    background-color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease,
+    color var(--motion-fast) ease,
+    transform var(--motion-fast) ease;
+}
+
+.button:disabled {
+  box-shadow: none;
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.button[data-pending="true"] {
+  cursor: wait;
+}
+
+.button:active:not(:disabled):not([aria-disabled="true"]) {
+  transform: translateY(1px);
+}
+
+.primary {
+  background: var(--color-brand);
+  box-shadow: var(--shadow-brand);
+  color: var(--color-brand-foreground);
+}
+
+.primary:hover:not(:disabled):not([aria-disabled="true"]) {
+  background: var(--color-brand-hover);
+  box-shadow: 0 10px 22px rgb(67 56 202 / 22%);
+}
+
+.primary:active:not(:disabled):not([aria-disabled="true"]) {
+  background: var(--color-brand-active);
+}
+
+.primary:focus-visible {
+  outline-color: var(--focus-ring);
+  outline-offset: 3px;
+  box-shadow:
+    0 0 0 2px var(--focus-on-brand-ring),
+    var(--shadow-brand);
+}
+
+.secondary {
+  background: var(--color-surface-default);
+  border-color: var(--color-border-control);
+  color: var(--color-text-primary);
+}
+
+.secondary:hover:not(:disabled):not([aria-disabled="true"]) {
+  background: var(--color-brand-subtle);
+  border-color: var(--color-brand);
+  color: var(--color-brand-active);
+}
+
+.quiet {
+  background: transparent;
+  box-shadow: none;
+  color: var(--color-text-link);
+}
+
+.quiet:hover:not(:disabled):not([aria-disabled="true"]) {
+  background: var(--color-brand-subtle);
+}
+
+.danger {
+  background: var(--color-status-danger-background);
+  border-color: var(--color-status-danger-border);
+  color: var(--color-status-danger-foreground);
+}
+
+.danger:hover:not(:disabled):not([aria-disabled="true"]) {
+  box-shadow: 0 4px 12px rgb(185 28 28 / 12%);
+}
+
+.fullWidth {
+  inline-size: 100%;
+}
+
+@media (forced-colors: active) {
+  .button {
+    border-color: ButtonText;
+    box-shadow: none;
+    forced-color-adjust: auto;
+  }
+
+  .primary:focus-visible {
+    box-shadow: none;
+    outline-color: Highlight;
+  }
+}

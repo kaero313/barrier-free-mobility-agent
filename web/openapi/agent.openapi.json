@@ -1,0 +1,2891 @@
+{
+  "components": {
+    "schemas": {
+      "ActiveClarificationSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/ClarificationField"
+            },
+            "minItems": 1,
+            "title": "Fields",
+            "type": "array"
+          },
+          "id": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "prompt_ids": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Prompt Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "prompt_ids",
+          "fields"
+        ],
+        "title": "ActiveClarificationSummary",
+        "type": "object"
+      },
+      "AnswerEvidence": {
+        "additionalProperties": false,
+        "properties": {
+          "confidence_level": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConfidenceLevel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "failed_sources": {
+            "items": {
+              "$ref": "#/components/schemas/FailedSourceSummary"
+            },
+            "title": "Failed Sources",
+            "type": "array"
+          },
+          "last_checked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Checked At"
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Limitations",
+            "type": "array"
+          },
+          "risk_level": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RiskLevel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "unverified_parts": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unverified Parts",
+            "type": "array"
+          }
+        },
+        "title": "AnswerEvidence",
+        "type": "object"
+      },
+      "AnswerQuestionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "question": {
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "Question",
+            "type": "string"
+          }
+        },
+        "required": [
+          "question"
+        ],
+        "title": "AnswerQuestionRequest",
+        "type": "object"
+      },
+      "AnswerQuestionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "available_partial_info": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Available Partial Info",
+            "type": "array"
+          },
+          "clarification": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ClarificationView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "clarification_needed": {
+            "title": "Clarification Needed",
+            "type": "boolean"
+          },
+          "clarification_options": {
+            "deprecated": true,
+            "items": {
+              "$ref": "#/components/schemas/ClarificationOption"
+            },
+            "title": "Clarification Options",
+            "type": "array"
+          },
+          "evidence": {
+            "$ref": "#/components/schemas/AnswerEvidence"
+          },
+          "intent": {
+            "$ref": "#/components/schemas/QuestionIntent"
+          },
+          "presentation": {
+            "anyOf": [
+              {
+                "discriminator": {
+                  "mapping": {
+                    "facility": "#/components/schemas/FacilityAnswerPresentation",
+                    "trip": "#/components/schemas/TripAnswerPresentation"
+                  },
+                  "propertyName": "kind"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/TripAnswerPresentation"
+                  },
+                  {
+                    "$ref": "#/components/schemas/FacilityAnswerPresentation"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Presentation"
+          },
+          "questions": {
+            "deprecated": true,
+            "items": {
+              "type": "string"
+            },
+            "title": "Questions",
+            "type": "array"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "3",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/AnswerSource"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ResponseStatus"
+          },
+          "user_message": {
+            "title": "User Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema_version",
+          "request_id",
+          "source",
+          "status",
+          "intent",
+          "user_message",
+          "clarification_needed",
+          "clarification",
+          "questions",
+          "clarification_options",
+          "available_partial_info",
+          "evidence",
+          "presentation"
+        ],
+        "title": "AnswerQuestionResponse",
+        "type": "object"
+      },
+      "AnswerSource": {
+        "enum": [
+          "mcp",
+          "agent"
+        ],
+        "title": "AnswerSource",
+        "type": "string"
+      },
+      "ChoiceClarificationAnswerValue": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "choice",
+            "default": "choice",
+            "title": "Kind",
+            "type": "string"
+          },
+          "value": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "title": "ChoiceClarificationAnswerValue",
+        "type": "object"
+      },
+      "ChoiceClarificationInput": {
+        "additionalProperties": false,
+        "properties": {
+          "control": {
+            "const": "single_choice",
+            "default": "single_choice",
+            "title": "Control",
+            "type": "string"
+          },
+          "field": {
+            "$ref": "#/components/schemas/ClarificationField"
+          },
+          "id": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/ClarificationInputOption"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Options",
+            "type": "array"
+          },
+          "prompt_id": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Prompt Id",
+            "type": "string"
+          },
+          "required": {
+            "const": true,
+            "default": true,
+            "title": "Required",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "prompt_id",
+          "field",
+          "label",
+          "options"
+        ],
+        "title": "ChoiceClarificationInput",
+        "type": "object"
+      },
+      "ClarificationControl": {
+        "enum": [
+          "choice",
+          "free_text"
+        ],
+        "title": "ClarificationControl",
+        "type": "string"
+      },
+      "ClarificationField": {
+        "enum": [
+          "origin",
+          "destination",
+          "wheelchair",
+          "stroller",
+          "cane_or_walker",
+          "can_use_stairs",
+          "can_use_escalator",
+          "need_elevator_only",
+          "need_accessible_restroom",
+          "need_wheelchair_charger",
+          "avoid_many_transfers",
+          "target_station",
+          "target_line",
+          "facility_types",
+          "facility_question_kind",
+          "accessible_restroom_confirmation",
+          "intent",
+          "other"
+        ],
+        "title": "ClarificationField",
+        "type": "string"
+      },
+      "ClarificationFieldAnswer": {
+        "additionalProperties": false,
+        "properties": {
+          "input_id": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Input Id",
+            "type": "string"
+          },
+          "value": {
+            "discriminator": {
+              "mapping": {
+                "choice": "#/components/schemas/ChoiceClarificationAnswerValue",
+                "text": "#/components/schemas/TextClarificationAnswerValue",
+                "tri_state": "#/components/schemas/TriStateClarificationAnswerValue"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/TextClarificationAnswerValue"
+              },
+              {
+                "$ref": "#/components/schemas/ChoiceClarificationAnswerValue"
+              },
+              {
+                "$ref": "#/components/schemas/TriStateClarificationAnswerValue"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "input_id",
+          "value"
+        ],
+        "title": "ClarificationFieldAnswer",
+        "type": "object"
+      },
+      "ClarificationInputOption": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "value": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "value",
+          "label"
+        ],
+        "title": "ClarificationInputOption",
+        "type": "object"
+      },
+      "ClarificationOption": {
+        "additionalProperties": false,
+        "description": "Agent-owned option safe to expose without leaking an MCP response model.",
+        "properties": {
+          "label": {
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "value": {
+            "minLength": 1,
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "value",
+          "label"
+        ],
+        "title": "ClarificationOption",
+        "type": "object"
+      },
+      "ClarificationPrompt": {
+        "additionalProperties": false,
+        "properties": {
+          "fields": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ClarificationField"
+            },
+            "title": "Fields",
+            "type": "array"
+          },
+          "id": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "question": {
+            "minLength": 1,
+            "title": "Question",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "question"
+        ],
+        "title": "ClarificationPrompt",
+        "type": "object"
+      },
+      "ClarificationView": {
+        "additionalProperties": false,
+        "description": "One active clarification turn submitted as one natural-language answer.",
+        "properties": {
+          "answer_mode": {
+            "const": "single_text",
+            "default": "single_text",
+            "title": "Answer Mode",
+            "type": "string"
+          },
+          "control": {
+            "$ref": "#/components/schemas/ClarificationControl"
+          },
+          "id": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "options": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ClarificationOption"
+            },
+            "title": "Options",
+            "type": "array"
+          },
+          "prompts": {
+            "items": {
+              "$ref": "#/components/schemas/ClarificationPrompt"
+            },
+            "minItems": 1,
+            "title": "Prompts",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": "1",
+            "default": "1",
+            "title": "Schema Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "control",
+          "prompts"
+        ],
+        "title": "ClarificationView",
+        "type": "object"
+      },
+      "ConfidenceLevel": {
+        "enum": [
+          "HIGH",
+          "MEDIUM",
+          "LOW"
+        ],
+        "title": "ConfidenceLevel",
+        "type": "string"
+      },
+      "ContextLocationStatus": {
+        "enum": [
+          "provided",
+          "resolved"
+        ],
+        "title": "ContextLocationStatus",
+        "type": "string"
+      },
+      "ContextProvenance": {
+        "enum": [
+          "user_provided",
+          "user_confirmed",
+          "previous_context"
+        ],
+        "title": "ContextProvenance",
+        "type": "string"
+      },
+      "ContractStatus": {
+        "enum": [
+          "ready",
+          "degraded",
+          "unavailable",
+          "incompatible",
+          "unchecked"
+        ],
+        "title": "ContractStatus",
+        "type": "string"
+      },
+      "ConversationContextView": {
+        "additionalProperties": false,
+        "description": "Safe, immutable projection of the context used for one run response.",
+        "properties": {
+          "active_clarification": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActiveClarificationSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "destination": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConversationLocationView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "facility": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FacilityContextView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "intent": {
+            "$ref": "#/components/schemas/QuestionIntent",
+            "default": "unknown"
+          },
+          "mobility_conditions": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/MobilityConditionView"
+            },
+            "title": "Mobility Conditions",
+            "type": "array"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConversationLocationView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "schema_version": {
+            "const": "2",
+            "default": "2",
+            "title": "Schema Version",
+            "type": "string"
+          }
+        },
+        "title": "ConversationContextView",
+        "type": "object"
+      },
+      "ConversationLocationView": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "line": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line"
+          },
+          "query": {
+            "minLength": 1,
+            "title": "Query",
+            "type": "string"
+          },
+          "station_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Station Name"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ContextLocationStatus"
+          }
+        },
+        "required": [
+          "query",
+          "label",
+          "status"
+        ],
+        "title": "ConversationLocationView",
+        "type": "object"
+      },
+      "ConversationRunResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "available_partial_info": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Available Partial Info",
+            "type": "array"
+          },
+          "clarification": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ClarificationView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "clarification_needed": {
+            "title": "Clarification Needed",
+            "type": "boolean"
+          },
+          "clarification_options": {
+            "deprecated": true,
+            "items": {
+              "$ref": "#/components/schemas/ClarificationOption"
+            },
+            "title": "Clarification Options",
+            "type": "array"
+          },
+          "context": {
+            "$ref": "#/components/schemas/ConversationContextView"
+          },
+          "evidence": {
+            "$ref": "#/components/schemas/AnswerEvidence"
+          },
+          "intent": {
+            "$ref": "#/components/schemas/QuestionIntent"
+          },
+          "presentation": {
+            "anyOf": [
+              {
+                "discriminator": {
+                  "mapping": {
+                    "facility": "#/components/schemas/FacilityAnswerPresentation",
+                    "trip": "#/components/schemas/TripAnswerPresentation"
+                  },
+                  "propertyName": "kind"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/TripAnswerPresentation"
+                  },
+                  {
+                    "$ref": "#/components/schemas/FacilityAnswerPresentation"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Presentation"
+          },
+          "questions": {
+            "deprecated": true,
+            "items": {
+              "type": "string"
+            },
+            "title": "Questions",
+            "type": "array"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "run_status": {
+            "$ref": "#/components/schemas/GraphTurnStatus"
+          },
+          "schema_version": {
+            "const": "3",
+            "default": "3",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/AnswerSource"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ResponseStatus"
+          },
+          "thread_id": {
+            "title": "Thread Id",
+            "type": "string"
+          },
+          "user_message": {
+            "title": "User Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "request_id",
+          "thread_id",
+          "run_id",
+          "run_status",
+          "source",
+          "status",
+          "intent",
+          "user_message",
+          "clarification_needed",
+          "clarification",
+          "questions",
+          "clarification_options",
+          "available_partial_info",
+          "evidence",
+          "presentation",
+          "context"
+        ],
+        "title": "ConversationRunResponse",
+        "type": "object"
+      },
+      "ConversationRunResponseV4": {
+        "additionalProperties": false,
+        "description": "Opt-in run response consumed by the same-product Web BFF.",
+        "properties": {
+          "available_partial_info": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Available Partial Info",
+            "type": "array"
+          },
+          "clarification": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StructuredClarificationView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "clarification_needed": {
+            "title": "Clarification Needed",
+            "type": "boolean"
+          },
+          "context": {
+            "$ref": "#/components/schemas/ConversationContextView"
+          },
+          "evidence": {
+            "$ref": "#/components/schemas/AnswerEvidence"
+          },
+          "intent": {
+            "$ref": "#/components/schemas/QuestionIntent"
+          },
+          "presentation": {
+            "anyOf": [
+              {
+                "discriminator": {
+                  "mapping": {
+                    "facility": "#/components/schemas/FacilityAnswerPresentation",
+                    "trip": "#/components/schemas/TripAnswerPresentation"
+                  },
+                  "propertyName": "kind"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/TripAnswerPresentation"
+                  },
+                  {
+                    "$ref": "#/components/schemas/FacilityAnswerPresentation"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Presentation"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "run_status": {
+            "$ref": "#/components/schemas/GraphTurnStatus"
+          },
+          "schema_version": {
+            "const": "4",
+            "default": "4",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/AnswerSource"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ResponseStatus"
+          },
+          "thread_id": {
+            "title": "Thread Id",
+            "type": "string"
+          },
+          "user_message": {
+            "title": "User Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "request_id",
+          "thread_id",
+          "run_id",
+          "run_status",
+          "source",
+          "status",
+          "intent",
+          "user_message",
+          "clarification_needed",
+          "clarification",
+          "available_partial_info",
+          "evidence",
+          "presentation",
+          "context"
+        ],
+        "title": "ConversationRunResponseV4",
+        "type": "object"
+      },
+      "CreateThreadResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "persistence": {
+            "enum": [
+              "ephemeral",
+              "durable"
+            ],
+            "title": "Persistence",
+            "type": "string"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "1",
+            "default": "1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "thread_id": {
+            "title": "Thread Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "request_id",
+          "thread_id",
+          "persistence"
+        ],
+        "title": "CreateThreadResponse",
+        "type": "object"
+      },
+      "EmptyErrorDetail": {
+        "additionalProperties": false,
+        "properties": {},
+        "title": "EmptyErrorDetail",
+        "type": "object"
+      },
+      "ErrorBody": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "^[A-Z][A-Z0-9_]*$",
+            "title": "Code",
+            "type": "string"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EmptyErrorDetail"
+              },
+              {
+                "$ref": "#/components/schemas/RequestValidationErrorDetail"
+              }
+            ],
+            "title": "Detail"
+          },
+          "message": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          },
+          "retryable": {
+            "default": false,
+            "title": "Retryable",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ErrorBody",
+        "type": "object"
+      },
+      "ErrorResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorBody"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "2",
+            "default": "2",
+            "title": "Schema Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "request_id",
+          "error"
+        ],
+        "title": "ErrorResponse",
+        "type": "object"
+      },
+      "EvidenceSourceSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "checked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checked At"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "source_type": {
+            "enum": [
+              "public_api",
+              "cache"
+            ],
+            "title": "Source Type",
+            "type": "string"
+          },
+          "success": {
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "display_name",
+          "source_type",
+          "success"
+        ],
+        "title": "EvidenceSourceSummary",
+        "type": "object"
+      },
+      "FacilityAnswerPresentation": {
+        "additionalProperties": false,
+        "description": "Allowlisted facility fields without provider IDs or raw status text.",
+        "properties": {
+          "evidence_sources": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/EvidenceSourceSummary"
+            },
+            "title": "Evidence Sources",
+            "type": "array"
+          },
+          "facility": {
+            "$ref": "#/components/schemas/FacilitySummaryView"
+          },
+          "kind": {
+            "const": "facility",
+            "default": "facility",
+            "title": "Kind",
+            "type": "string"
+          },
+          "safety_notice": {
+            "title": "Safety Notice",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "2",
+            "default": "2",
+            "title": "Schema Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "facility",
+          "safety_notice"
+        ],
+        "title": "FacilityAnswerPresentation",
+        "type": "object"
+      },
+      "FacilityContextView": {
+        "additionalProperties": false,
+        "properties": {
+          "question_kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FacilityQuestionKind"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "requested_types": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/FacilityType"
+            },
+            "title": "Requested Types",
+            "type": "array"
+          },
+          "requested_types_provenance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContextProvenance"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "requested_types_provenance_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested Types Provenance Label"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConversationLocationView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "target_provenance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContextProvenance"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "target_provenance_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Provenance Label"
+          }
+        },
+        "title": "FacilityContextView",
+        "type": "object"
+      },
+      "FacilityDetailView": {
+        "additionalProperties": false,
+        "properties": {
+          "facility_type": {
+            "$ref": "#/components/schemas/FacilityType"
+          },
+          "has_emergency_bell": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Has Emergency Bell"
+          },
+          "inside_gate": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inside Gate"
+          },
+          "line": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line"
+          },
+          "location_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Description"
+          },
+          "open_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Open Time"
+          },
+          "station_name": {
+            "title": "Station Name",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/FacilityStatus"
+          }
+        },
+        "required": [
+          "station_name",
+          "facility_type",
+          "status"
+        ],
+        "title": "FacilityDetailView",
+        "type": "object"
+      },
+      "FacilityItemView": {
+        "additionalProperties": false,
+        "properties": {
+          "answer_state": {
+            "$ref": "#/components/schemas/PublicFacilityAnswerState"
+          },
+          "facilities": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/FacilityDetailView"
+            },
+            "title": "Facilities",
+            "type": "array"
+          },
+          "facility_type": {
+            "$ref": "#/components/schemas/FacilityType"
+          },
+          "total_count": {
+            "minimum": 0.0,
+            "title": "Total Count",
+            "type": "integer"
+          },
+          "truncated": {
+            "title": "Truncated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "facility_type",
+          "answer_state",
+          "total_count",
+          "truncated"
+        ],
+        "title": "FacilityItemView",
+        "type": "object"
+      },
+      "FacilityQuestionKind": {
+        "enum": [
+          "status",
+          "location",
+          "existence",
+          "overview"
+        ],
+        "title": "FacilityQuestionKind",
+        "type": "string"
+      },
+      "FacilityStatus": {
+        "enum": [
+          "AVAILABLE",
+          "UNAVAILABLE",
+          "MAINTENANCE",
+          "UNKNOWN"
+        ],
+        "title": "FacilityStatus",
+        "type": "string"
+      },
+      "FacilitySummaryView": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FacilityItemView"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "line": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line"
+          },
+          "question_kind": {
+            "$ref": "#/components/schemas/FacilityQuestionKind"
+          },
+          "station_name": {
+            "title": "Station Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "station_name",
+          "question_kind",
+          "items"
+        ],
+        "title": "FacilitySummaryView",
+        "type": "object"
+      },
+      "FacilityType": {
+        "enum": [
+          "ELEVATOR",
+          "ESCALATOR",
+          "ACCESSIBLE_RESTROOM",
+          "RESTROOM",
+          "WHEELCHAIR_CHARGER",
+          "UNKNOWN"
+        ],
+        "title": "FacilityType",
+        "type": "string"
+      },
+      "FailedSourceCode": {
+        "enum": [
+          "route_information",
+          "station_information",
+          "facility_information",
+          "mobility_information"
+        ],
+        "title": "FailedSourceCode",
+        "type": "string"
+      },
+      "FailedSourceSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "display_name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "recoverable": {
+            "title": "Recoverable",
+            "type": "boolean"
+          },
+          "source_name": {
+            "$ref": "#/components/schemas/FailedSourceCode"
+          }
+        },
+        "required": [
+          "source_name",
+          "display_name",
+          "recoverable"
+        ],
+        "title": "FailedSourceSummary",
+        "type": "object"
+      },
+      "FieldsAnswerRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "inputs": {
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "single_choice": "#/components/schemas/ChoiceClarificationInput",
+                  "text": "#/components/schemas/TextClarificationInput",
+                  "tri_state": "#/components/schemas/TriStateClarificationInput"
+                },
+                "propertyName": "control"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/TextClarificationInput"
+                },
+                {
+                  "$ref": "#/components/schemas/TriStateClarificationInput"
+                },
+                {
+                  "$ref": "#/components/schemas/ChoiceClarificationInput"
+                }
+              ]
+            },
+            "maxItems": 16,
+            "minItems": 1,
+            "title": "Inputs",
+            "type": "array"
+          },
+          "mode": {
+            "const": "fields",
+            "default": "fields",
+            "title": "Mode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "inputs"
+        ],
+        "title": "FieldsAnswerRequest",
+        "type": "object"
+      },
+      "FieldsClarificationAnswer": {
+        "additionalProperties": false,
+        "properties": {
+          "mode": {
+            "const": "fields",
+            "default": "fields",
+            "title": "Mode",
+            "type": "string"
+          },
+          "values": {
+            "items": {
+              "$ref": "#/components/schemas/ClarificationFieldAnswer"
+            },
+            "maxItems": 16,
+            "minItems": 1,
+            "title": "Values",
+            "type": "array"
+          }
+        },
+        "required": [
+          "values"
+        ],
+        "title": "FieldsClarificationAnswer",
+        "type": "object"
+      },
+      "GraphTurnStatus": {
+        "enum": [
+          "completed",
+          "interrupted",
+          "failed"
+        ],
+        "title": "GraphTurnStatus",
+        "type": "string"
+      },
+      "LivenessResponse": {
+        "properties": {
+          "service": {
+            "title": "Service",
+            "type": "string"
+          },
+          "status": {
+            "const": "ok",
+            "default": "ok",
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "service",
+          "version"
+        ],
+        "title": "LivenessResponse",
+        "type": "object"
+      },
+      "McpCapability": {
+        "enum": [
+          "trip_accessibility",
+          "facility_question"
+        ],
+        "title": "McpCapability",
+        "type": "string"
+      },
+      "McpReadiness": {
+        "properties": {
+          "capabilities": {
+            "items": {
+              "$ref": "#/components/schemas/McpCapability"
+            },
+            "title": "Capabilities",
+            "type": "array"
+          },
+          "checked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checked At"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "schema_fingerprint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schema Fingerprint"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ContractStatus"
+          },
+          "tool_count": {
+            "title": "Tool Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "status",
+          "checked_at",
+          "tool_count",
+          "capabilities",
+          "schema_fingerprint",
+          "error_code"
+        ],
+        "title": "McpReadiness",
+        "type": "object"
+      },
+      "MobilityConditionView": {
+        "additionalProperties": false,
+        "properties": {
+          "field": {
+            "$ref": "#/components/schemas/ClarificationField"
+          },
+          "label": {
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/ContextProvenance"
+          },
+          "provenance_label": {
+            "minLength": 1,
+            "title": "Provenance Label",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "field",
+          "label",
+          "value",
+          "provenance",
+          "provenance_label"
+        ],
+        "title": "MobilityConditionView",
+        "type": "object"
+      },
+      "PersistenceReadiness": {
+        "properties": {
+          "backend": {
+            "enum": [
+              "memory",
+              "postgres"
+            ],
+            "title": "Backend",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "ready",
+              "unavailable"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "backend"
+        ],
+        "title": "PersistenceReadiness",
+        "type": "object"
+      },
+      "PublicFacilityAnswerState": {
+        "enum": [
+          "AVAILABLE",
+          "MIXED",
+          "MAINTENANCE",
+          "UNAVAILABLE",
+          "NOT_CONFIRMED",
+          "UNKNOWN"
+        ],
+        "title": "PublicFacilityAnswerState",
+        "type": "string"
+      },
+      "QuestionIntent": {
+        "enum": [
+          "trip_accessibility",
+          "facility_status",
+          "alternative_request",
+          "unknown"
+        ],
+        "title": "QuestionIntent",
+        "type": "string"
+      },
+      "ReadinessDependencies": {
+        "properties": {
+          "mobility_mcp": {
+            "$ref": "#/components/schemas/McpReadiness"
+          },
+          "persistence": {
+            "$ref": "#/components/schemas/PersistenceReadiness"
+          }
+        },
+        "required": [
+          "mobility_mcp",
+          "persistence"
+        ],
+        "title": "ReadinessDependencies",
+        "type": "object"
+      },
+      "ReadinessResponse": {
+        "properties": {
+          "dependencies": {
+            "$ref": "#/components/schemas/ReadinessDependencies"
+          },
+          "service": {
+            "title": "Service",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "ready",
+              "not_ready"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "service",
+          "version",
+          "dependencies"
+        ],
+        "title": "ReadinessResponse",
+        "type": "object"
+      },
+      "RequestValidationErrorDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/RequestValidationIssue"
+            },
+            "maxItems": 32,
+            "minItems": 1,
+            "title": "Issues",
+            "type": "array"
+          }
+        },
+        "required": [
+          "issues"
+        ],
+        "title": "RequestValidationErrorDetail",
+        "type": "object"
+      },
+      "RequestValidationIssue": {
+        "additionalProperties": false,
+        "properties": {
+          "location": {
+            "items": {
+              "maxLength": 100,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 16,
+            "minItems": 1,
+            "title": "Location",
+            "type": "array"
+          },
+          "message": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "location",
+          "message"
+        ],
+        "title": "RequestValidationIssue",
+        "type": "object"
+      },
+      "ResponseStatus": {
+        "enum": [
+          "SUCCESS",
+          "PARTIAL",
+          "FAILED",
+          "NEEDS_CLARIFICATION"
+        ],
+        "title": "ResponseStatus",
+        "type": "string"
+      },
+      "ResumeRunRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "answer": {
+            "anyOf": [
+              {
+                "maxLength": 20000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "discriminator": {
+                  "mapping": {
+                    "fields": "#/components/schemas/FieldsClarificationAnswer",
+                    "single_text": "#/components/schemas/SingleTextClarificationAnswer"
+                  },
+                  "propertyName": "mode"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/SingleTextClarificationAnswer"
+                  },
+                  {
+                    "$ref": "#/components/schemas/FieldsClarificationAnswer"
+                  }
+                ]
+              }
+            ],
+            "title": "Answer"
+          },
+          "clarification_id": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clarification Id"
+          },
+          "schema_version": {
+            "anyOf": [
+              {
+                "const": "2",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schema Version"
+          }
+        },
+        "required": [
+          "answer"
+        ],
+        "title": "ResumeRunRequest",
+        "type": "object"
+      },
+      "RiskLevel": {
+        "enum": [
+          "LOW",
+          "CAUTION",
+          "HIGH",
+          "UNKNOWN"
+        ],
+        "title": "RiskLevel",
+        "type": "string"
+      },
+      "SingleTextAnswerRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "default": "추가 정보",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "max_length": {
+            "default": 20000,
+            "maximum": 20000.0,
+            "minimum": 1.0,
+            "title": "Max Length",
+            "type": "integer"
+          },
+          "min_length": {
+            "const": 1,
+            "default": 1,
+            "title": "Min Length",
+            "type": "integer"
+          },
+          "mode": {
+            "const": "single_text",
+            "default": "single_text",
+            "title": "Mode",
+            "type": "string"
+          }
+        },
+        "title": "SingleTextAnswerRequest",
+        "type": "object"
+      },
+      "SingleTextClarificationAnswer": {
+        "additionalProperties": false,
+        "properties": {
+          "mode": {
+            "const": "single_text",
+            "default": "single_text",
+            "title": "Mode",
+            "type": "string"
+          },
+          "value": {
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "title": "SingleTextClarificationAnswer",
+        "type": "object"
+      },
+      "StartRunRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "question": {
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "Question",
+            "type": "string"
+          }
+        },
+        "required": [
+          "question"
+        ],
+        "title": "StartRunRequest",
+        "type": "object"
+      },
+      "StructuredClarificationView": {
+        "additionalProperties": false,
+        "properties": {
+          "answer_request": {
+            "discriminator": {
+              "mapping": {
+                "fields": "#/components/schemas/FieldsAnswerRequest",
+                "single_text": "#/components/schemas/SingleTextAnswerRequest"
+              },
+              "propertyName": "mode"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SingleTextAnswerRequest"
+              },
+              {
+                "$ref": "#/components/schemas/FieldsAnswerRequest"
+              }
+            ],
+            "title": "Answer Request"
+          },
+          "id": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "prompts": {
+            "items": {
+              "$ref": "#/components/schemas/ClarificationPrompt"
+            },
+            "minItems": 1,
+            "title": "Prompts",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": "2",
+            "default": "2",
+            "title": "Schema Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "prompts",
+          "answer_request"
+        ],
+        "title": "StructuredClarificationView",
+        "type": "object"
+      },
+      "TextClarificationAnswerValue": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "text",
+            "default": "text",
+            "title": "Kind",
+            "type": "string"
+          },
+          "value": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "title": "TextClarificationAnswerValue",
+        "type": "object"
+      },
+      "TextClarificationInput": {
+        "additionalProperties": false,
+        "properties": {
+          "control": {
+            "const": "text",
+            "default": "text",
+            "title": "Control",
+            "type": "string"
+          },
+          "field": {
+            "$ref": "#/components/schemas/ClarificationField"
+          },
+          "id": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "max_length": {
+            "default": 2000,
+            "maximum": 20000.0,
+            "minimum": 1.0,
+            "title": "Max Length",
+            "type": "integer"
+          },
+          "min_length": {
+            "const": 1,
+            "default": 1,
+            "title": "Min Length",
+            "type": "integer"
+          },
+          "prompt_id": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Prompt Id",
+            "type": "string"
+          },
+          "required": {
+            "const": true,
+            "default": true,
+            "title": "Required",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "prompt_id",
+          "field",
+          "label"
+        ],
+        "title": "TextClarificationInput",
+        "type": "object"
+      },
+      "TriStateClarificationAnswerValue": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "tri_state",
+            "default": "tri_state",
+            "title": "Kind",
+            "type": "string"
+          },
+          "value": {
+            "enum": [
+              "yes",
+              "no",
+              "unknown"
+            ],
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "title": "TriStateClarificationAnswerValue",
+        "type": "object"
+      },
+      "TriStateClarificationInput": {
+        "additionalProperties": false,
+        "properties": {
+          "control": {
+            "const": "tri_state",
+            "default": "tri_state",
+            "title": "Control",
+            "type": "string"
+          },
+          "field": {
+            "$ref": "#/components/schemas/ClarificationField"
+          },
+          "id": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/ClarificationInputOption"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "title": "Options",
+            "type": "array"
+          },
+          "prompt_id": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Prompt Id",
+            "type": "string"
+          },
+          "required": {
+            "const": true,
+            "default": true,
+            "title": "Required",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "prompt_id",
+          "field",
+          "label",
+          "options"
+        ],
+        "title": "TriStateClarificationInput",
+        "type": "object"
+      },
+      "TripAnswerPresentation": {
+        "additionalProperties": false,
+        "description": "Allowlisted trip fields intended for a document-style answer card.",
+        "properties": {
+          "confidence_reasons": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Confidence Reasons",
+            "type": "array"
+          },
+          "evidence_sources": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/EvidenceSourceSummary"
+            },
+            "title": "Evidence Sources",
+            "type": "array"
+          },
+          "kind": {
+            "const": "trip",
+            "default": "trip",
+            "title": "Kind",
+            "type": "string"
+          },
+          "safety_notice": {
+            "title": "Safety Notice",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "2",
+            "default": "2",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "trip": {
+            "$ref": "#/components/schemas/TripSummaryView"
+          }
+        },
+        "required": [
+          "trip",
+          "safety_notice"
+        ],
+        "title": "TripAnswerPresentation",
+        "type": "object"
+      },
+      "TripSummaryView": {
+        "additionalProperties": false,
+        "properties": {
+          "destination": {
+            "title": "Destination",
+            "type": "string"
+          },
+          "origin": {
+            "title": "Origin",
+            "type": "string"
+          },
+          "route_summary": {
+            "title": "Route Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "origin",
+          "destination",
+          "route_summary"
+        ],
+        "title": "TripSummaryView",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Barrier-Free Mobility Agent",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/health/live": {
+      "get": {
+        "operationId": "liveness_health_live_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LivenessResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Liveness",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "operationId": "readiness_health_ready_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Readiness",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/v1/accessibility/questions": {
+      "post": {
+        "operationId": "answer_question_v1_accessibility_questions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnswerQuestionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnswerQuestionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request owner could not be authenticated."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request could not be validated or normalized."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "An Agent capacity or execution budget was exceeded."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The Agent could not safely complete the operation."
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The MCP Tool returned an execution or validation error."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "An MCP or durable execution dependency is unavailable."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The MCP Tool call timed out."
+          }
+        },
+        "summary": "Answer Question",
+        "tags": [
+          "accessibility"
+        ]
+      }
+    },
+    "/v1/runs/{run_id}": {
+      "get": {
+        "operationId": "get_run_v1_runs__run_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-f0-9]{32}$",
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Opt in to the structured run response. Defaults to legacy schema 3.",
+            "in": "header",
+            "name": "X-Agent-Response-Schema",
+            "required": false,
+            "schema": {
+              "default": "3",
+              "description": "Opt in to the structured run response. Defaults to legacy schema 3.",
+              "enum": [
+                "3",
+                "4"
+              ],
+              "title": "X-Agent-Response-Schema",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ConversationRunResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ConversationRunResponseV4"
+                    }
+                  ],
+                  "title": "Response Get Run V1 Runs  Run Id  Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request owner could not be authenticated."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested thread or run was not found."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request could not be validated or normalized."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The Agent could not safely complete the operation."
+          }
+        },
+        "summary": "Get Run",
+        "tags": [
+          "threads"
+        ]
+      }
+    },
+    "/v1/runs/{run_id}/resume": {
+      "post": {
+        "operationId": "resume_run_v1_runs__run_id__resume_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-f0-9]{32}$",
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Opt in to the structured run response. Defaults to legacy schema 3.",
+            "in": "header",
+            "name": "X-Agent-Response-Schema",
+            "required": false,
+            "schema": {
+              "default": "3",
+              "description": "Opt in to the structured run response. Defaults to legacy schema 3.",
+              "enum": [
+                "3",
+                "4"
+              ],
+              "title": "X-Agent-Response-Schema",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Opaque key for one start or resume mutation. During the compatibility window, omitting it keeps the legacy synchronous execution path.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "minLength": 16,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque key for one start or resume mutation. During the compatibility window, omitting it keeps the legacy synchronous execution path.",
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResumeRunRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ConversationRunResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ConversationRunResponseV4"
+                    }
+                  ],
+                  "title": "Response Resume Run V1 Runs  Run Id  Resume Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request owner could not be authenticated."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested thread or run was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The thread or run state does not allow this operation."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request could not be validated or normalized."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "An Agent capacity or execution budget was exceeded."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The Agent could not safely complete the operation."
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The MCP Tool returned an execution or validation error."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "An MCP or durable execution dependency is unavailable."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The MCP Tool call timed out."
+          }
+        },
+        "summary": "Resume Run",
+        "tags": [
+          "threads"
+        ]
+      }
+    },
+    "/v1/threads": {
+      "post": {
+        "operationId": "create_thread_v1_threads_post",
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateThreadResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request owner could not be authenticated."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "An Agent capacity or execution budget was exceeded."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The Agent could not safely complete the operation."
+          }
+        },
+        "summary": "Create Thread",
+        "tags": [
+          "threads"
+        ]
+      }
+    },
+    "/v1/threads/{thread_id}": {
+      "delete": {
+        "operationId": "delete_thread_v1_threads__thread_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "thread_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-f0-9]{32}$",
+              "title": "Thread Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request owner could not be authenticated."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested thread or run was not found."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request could not be validated or normalized."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The Agent could not safely complete the operation."
+          }
+        },
+        "summary": "Delete Thread",
+        "tags": [
+          "threads"
+        ]
+      }
+    },
+    "/v1/threads/{thread_id}/runs": {
+      "post": {
+        "operationId": "start_run_v1_threads__thread_id__runs_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "thread_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-f0-9]{32}$",
+              "title": "Thread Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Opt in to the structured run response. Defaults to legacy schema 3.",
+            "in": "header",
+            "name": "X-Agent-Response-Schema",
+            "required": false,
+            "schema": {
+              "default": "3",
+              "description": "Opt in to the structured run response. Defaults to legacy schema 3.",
+              "enum": [
+                "3",
+                "4"
+              ],
+              "title": "X-Agent-Response-Schema",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Opaque key for one start or resume mutation. During the compatibility window, omitting it keeps the legacy synchronous execution path.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "minLength": 16,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque key for one start or resume mutation. During the compatibility window, omitting it keeps the legacy synchronous execution path.",
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartRunRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ConversationRunResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ConversationRunResponseV4"
+                    }
+                  ],
+                  "title": "Response Start Run V1 Threads  Thread Id  Runs Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request owner could not be authenticated."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested thread or run was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The thread or run state does not allow this operation."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request could not be validated or normalized."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "An Agent capacity or execution budget was exceeded."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The Agent could not safely complete the operation."
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The MCP Tool returned an execution or validation error."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "An MCP or durable execution dependency is unavailable."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The MCP Tool call timed out."
+          }
+        },
+        "summary": "Start Run",
+        "tags": [
+          "threads"
+        ]
+      }
+    }
+  }
+}

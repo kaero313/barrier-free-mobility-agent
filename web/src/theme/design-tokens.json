@@ -1,0 +1,196 @@
+{
+  "meta": {
+    "name": "Barrier-Free Mobility UI Tokens",
+    "version": "1.1.0",
+    "colorSpace": "sRGB",
+    "baseFontSizePx": 16,
+    "accessibilityTarget": "WCAG 2.2 AA",
+    "notes": "Status meaning must always include visible text and must not rely on color alone.",
+    "usage": {
+      "border.subtle": "Decorative divider only; never use as the sole interactive control boundary.",
+      "border.control": "Interactive input, radio, checkbox and button boundary.",
+      "focus": "Never remove the visible outline. Use the on-brand pair on brand surfaces."
+    }
+  },
+  "color": {
+    "surface": {
+      "canvas": "#F5F7FB",
+      "default": "#FFFFFF",
+      "subtle": "#EEF2F7",
+      "inverse": "#17163A"
+    },
+    "text": {
+      "primary": "#171A2B",
+      "secondary": "#596174",
+      "inverse": "#FFFFFF",
+      "link": "#4338CA"
+    },
+    "border": {
+      "default": "#7B8497",
+      "subtle": "#D7DDE8",
+      "control": "#667085",
+      "strong": "#343B4F"
+    },
+    "brand": {
+      "default": "#4338CA",
+      "hover": "#3730A3",
+      "active": "#312E81",
+      "foreground": "#FFFFFF",
+      "subtle": "#EEEDFF"
+    },
+    "accent": {
+      "default": "#0F766E",
+      "hover": "#115E59",
+      "subtle": "#F0FDFA"
+    },
+    "focus": {
+      "ring": "#2563EB",
+      "offset": "#FFFFFF",
+      "onBrandRing": "#FFFFFF",
+      "onBrandOffset": "#312E81"
+    },
+    "status": {
+      "success": {
+        "foreground": "#115E59",
+        "background": "#F0FDFA",
+        "border": "#0F766E",
+        "icon": "check-circle"
+      },
+      "partial": {
+        "foreground": "#854D0E",
+        "background": "#FFFBEB",
+        "border": "#A16207",
+        "icon": "triangle-alert"
+      },
+      "danger": {
+        "foreground": "#991B1B",
+        "background": "#FEF2F2",
+        "border": "#B91C1C",
+        "icon": "circle-x"
+      },
+      "info": {
+        "foreground": "#3730A3",
+        "background": "#EEEDFF",
+        "border": "#4F46E5",
+        "icon": "circle-info"
+      },
+      "unknown": {
+        "foreground": "#334155",
+        "background": "#F1F5F9",
+        "border": "#475569",
+        "icon": "circle-help"
+      }
+    }
+  },
+  "contrastEvidence": {
+    "text.primary/surface.default": "17.23:1",
+    "text.secondary/surface.default": "6.20:1",
+    "brand.foreground/brand.default": "7.90:1",
+    "status.success": "7.27:1",
+    "status.partial": "6.61:1",
+    "status.danger": "7.60:1",
+    "status.info": "8.61:1",
+    "status.unknown": "9.45:1",
+    "focus.ring/surface.default": "5.17:1",
+    "focus.ring/surface.inverse": "3.35:1",
+    "focus.onBrandRing/brand.default": "7.90:1",
+    "border.control/surface.default": "4.97:1"
+  },
+  "typography": {
+    "fontFamily": {
+      "sans": "Pretendard Variable, Pretendard, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif",
+      "mono": "ui-monospace, SFMono-Regular, Consolas, Liberation Mono, monospace"
+    },
+    "fontSizePx": {
+      "caption": 14,
+      "body": 16,
+      "bodyLarge": 18,
+      "headingSmall": 20,
+      "headingMedium": 24,
+      "headingLarge": 32,
+      "display": 48
+    },
+    "lineHeight": {
+      "compact": 1.35,
+      "body": 1.6,
+      "relaxed": 1.75
+    },
+    "fontWeight": {
+      "regular": 400,
+      "medium": 500,
+      "semibold": 600,
+      "bold": 700
+    }
+  },
+  "spacePx": {
+    "0": 0,
+    "1": 4,
+    "2": 8,
+    "3": 12,
+    "4": 16,
+    "5": 20,
+    "6": 24,
+    "8": 32,
+    "10": 40,
+    "12": 48,
+    "16": 64
+  },
+  "sizePx": {
+    "controlMinHeight": 44,
+    "targetMinWidth": 44,
+    "targetMinHeight": 44,
+    "iconSmall": 16,
+    "iconDefault": 20,
+    "iconLarge": 24,
+    "contentMaxWidth": 1440,
+    "readingMaxWidth": 720
+  },
+  "radiusPx": {
+    "small": 10,
+    "medium": 14,
+    "large": 16,
+    "pill": 999
+  },
+  "borderWidthPx": {
+    "default": 1,
+    "strong": 2,
+    "focus": 3
+  },
+  "shadow": {
+    "card": "0 1px 2px rgba(23, 26, 43, 0.05), 0 8px 24px rgba(23, 26, 43, 0.07)",
+    "control": "0 1px 2px rgba(23, 26, 43, 0.08)",
+    "brand": "0 8px 18px rgba(67, 56, 202, 0.18)",
+    "overlay": "0 20px 48px rgba(23, 26, 43, 0.16)"
+  },
+  "motionMs": {
+    "instant": 0,
+    "fast": 120,
+    "normal": 180,
+    "slow": 240,
+    "reduced": 0
+  },
+  "breakpointPx": {
+    "mobile": 0,
+    "tablet": 640,
+    "desktop": 1024,
+    "wide": 1440
+  },
+  "layout": {
+    "desktopColumns": 12,
+    "assistant": {
+      "emptyMaxWidthPx": 880,
+      "clarificationMaxWidthPx": 960,
+      "resultMainColumns": 8,
+      "resultEvidenceColumns": 4
+    },
+    "mobileColumns": 1,
+    "gridGapPx": 24
+  },
+  "forcedColors": {
+    "text": "CanvasText",
+    "surface": "Canvas",
+    "focus": "Highlight",
+    "controlBorder": "ButtonText",
+    "adjust": "auto"
+  }
+}

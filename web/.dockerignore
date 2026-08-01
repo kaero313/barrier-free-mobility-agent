@@ -1,0 +1,13 @@
+.git
+.next
+node_modules
+coverage
+openapi
+scripts
+.env
+.env.*
+!.env.example
+npm-debug.log*
+*.log
+src/**/*.test.ts
+src/**/*.test.tsx

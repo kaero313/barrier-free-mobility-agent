@@ -1,0 +1,36 @@
+.surface {
+  border: var(--border-width-default) solid var(--color-border-subtle);
+  border-radius: var(--radius-large);
+  padding: clamp(var(--space-4), 3vw, var(--space-8));
+}
+
+.default {
+  background: var(--color-surface-default);
+  color: var(--color-text-primary);
+}
+
+.subtle {
+  background: color-mix(
+    in srgb,
+    var(--color-surface-subtle) 72%,
+    var(--color-surface-default)
+  );
+  color: var(--color-text-primary);
+}
+
+.inverse {
+  background: var(--color-surface-inverse);
+  border-color: var(--color-surface-inverse);
+  color: var(--color-text-inverse);
+}
+
+.elevated {
+  box-shadow: var(--shadow-card);
+}
+
+@media (forced-colors: active) {
+  .surface {
+    border-color: CanvasText;
+    box-shadow: none;
+  }
+}

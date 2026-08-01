@@ -1,0 +1,207 @@
+name: ci
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18.4-alpine3.23
+        env:
+          POSTGRES_DB: mobility_agent_test
+          POSTGRES_USER: mobility_agent
+          POSTGRES_PASSWORD: test-postgres-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U mobility_agent -d mobility_agent_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://mobility_agent:test-postgres-password@127.0.0.1:5432/mobility_agent_test
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: "0.11.21"
+          enable-cache: true
+
+      - name: Install Python
+        run: uv python install 3.13
+
+      - name: Sync locked dependencies
+        run: uv sync --locked
+
+      - name: Check Agent OpenAPI snapshot
+        run: uv run --locked python web/scripts/export-agent-openapi.py --check
+
+      - name: Check formatting
+        run: uv run ruff format --check .
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Type check
+        run: >-
+          uv run mypy
+          src
+          tests
+          scripts/run_contract_tests.py
+          scripts/run_replica_release_gate.py
+
+      - name: Test
+        run: uv run python -m pytest --cov --cov-report=term-missing --cov-report=xml
+
+      - name: Build package
+        run: uv build
+
+  eval-offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      MYPYPATH: src
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: "0.11.21"
+          enable-cache: true
+
+      - name: Install Python
+        run: uv python install 3.13
+
+      - name: Sync locked dependencies
+        run: uv sync --locked
+
+      - name: Type check offline evaluation boundary
+        run: >-
+          uv run mypy
+          evals
+          scripts/evaluate_structured_models.py
+          tests/evaluation
+
+      - name: Test offline evaluation boundary
+        run: uv run python -m pytest tests/evaluation
+
+      - name: Enforce credential-free model gates
+        run: >-
+          uv run --locked python scripts/evaluate_structured_models.py
+          --check
+
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install locked Web dependencies
+        working-directory: web
+        run: npm ci --no-audit --no-fund
+
+      - name: Check generated Web contract types
+        working-directory: web
+        run: npm run contracts:check
+
+      - name: Lint Web
+        working-directory: web
+        run: npm run lint
+
+      - name: Type check Web
+        working-directory: web
+        run: npm run typecheck
+
+      - name: Test Web
+        working-directory: web
+        run: npm run test:coverage
+
+      - name: Build Web
+        working-directory: web
+        env:
+          AGENT_INTERNAL_URL: http://agent:8080
+        run: npm run build
+
+      - name: Install Playwright Chromium
+        working-directory: web
+        run: npx playwright install --with-deps chromium
+
+      - name: Test Web accessibility and BFF E2E
+        working-directory: web
+        run: npm run test:e2e
+
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: quality
+
+    steps:
+      - name: Check out Agent source
+        uses: actions/checkout@v6
+
+      - name: Check out MCP contract dependency
+        uses: actions/checkout@v6
+        with:
+          repository: kaero313/barrier-free-mobility-mcp
+          # Upgrade only through a PR that passes this contract job.
+          ref: 591b30fed2dd3cdaa420f01efa0494c7643b9102
+          path: barrier-free-mobility-mcp
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: "0.11.21"
+          enable-cache: true
+
+      - name: Install runtimes
+        run: uv python install 3.13 3.12
+
+      - name: Sync locked Agent dependencies
+        run: uv sync --locked
+
+      - name: Sync locked MCP dependencies
+        run: uv sync --locked --project barrier-free-mobility-mcp
+
+      - name: Run live contract and HTTP smoke tests
+        run: >-
+          uv run --locked python scripts/run_contract_tests.py
+          --mcp-project barrier-free-mobility-mcp
+
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [quality, web]
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Build image
+        run: docker build --tag barrier-free-mobility-agent:test .
+
+      - name: Build Web image
+        run: docker build --tag barrier-free-mobility-web:test web

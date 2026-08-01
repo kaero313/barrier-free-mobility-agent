@@ -1,0 +1,14 @@
+.panel {
+  background: var(--color-surface-default);
+  border: var(--border-width-default) solid var(--color-border-subtle);
+  border-radius: var(--radius-large);
+  box-shadow: var(--shadow-card);
+  color: var(--color-text-primary);
+  padding: clamp(var(--space-4), 3vw, var(--space-8));
+}
+
+@media (forced-colors: active) {
+  .panel {
+    border-color: CanvasText;
+  }
+}

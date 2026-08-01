@@ -1,0 +1,135 @@
+services:
+  postgres:
+    image: postgres:18.4-alpine3.23
+    environment:
+      POSTGRES_DB: mobility_agent
+      POSTGRES_USER: mobility_agent
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-demo-postgres-password}
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mobility_agent -d mobility_agent"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    security_opt:
+      - no-new-privileges:true
+
+  agent:
+    build:
+      context: .
+    environment:
+      APP_ENV: local
+      LOG_LEVEL: INFO
+      LOG_FORMAT: json
+      API_OWNER_MODE: trusted_header
+      API_OWNER_SHARED_SECRET: ${AGENT_BFF_SHARED_SECRET:-local-demo-bff-shared-secret-change-me}
+      AGENT_STATE_MAX_BYTES: ${AGENT_STATE_MAX_BYTES:-65536}
+      PERSISTENCE_BACKEND: postgres
+      DATABASE_URL: postgresql://mobility_agent:${POSTGRES_PASSWORD:-local-demo-postgres-password}@postgres:5432/mobility_agent
+      DATABASE_AUTO_SETUP: "true"
+      EXECUTION_PAYLOAD_ENCRYPTION_KEY: ${EXECUTION_PAYLOAD_ENCRYPTION_KEY:-local-demo-execution-payload-key}
+      EXECUTION_PAYLOAD_PREVIOUS_ENCRYPTION_KEYS: ${EXECUTION_PAYLOAD_PREVIOUS_ENCRYPTION_KEYS:-[]}
+      IDEMPOTENCY_HMAC_KEY: ${IDEMPOTENCY_HMAC_KEY:-local-demo-idempotency-hmac-key-change-me}
+      EXECUTION_BOUNDED_WAIT_SECONDS: ${EXECUTION_BOUNDED_WAIT_SECONDS:-60}
+      EXECUTION_POLL_INTERVAL_SECONDS: ${EXECUTION_POLL_INTERVAL_SECONDS:-0.05}
+      EXECUTION_WORKER_LEASE_SECONDS: ${EXECUTION_WORKER_LEASE_SECONDS:-30}
+      EXECUTION_WORKER_HEARTBEAT_SECONDS: ${EXECUTION_WORKER_HEARTBEAT_SECONDS:-5}
+      EXECUTION_WORKER_READINESS_TIMEOUT_SECONDS: ${EXECUTION_WORKER_READINESS_TIMEOUT_SECONDS:-15}
+      MCP_MOBILITY_URL: ${MCP_MOBILITY_URL:-http://host.docker.internal:8000/mcp}
+      MCP_MOBILITY_HEALTH_URL: ${MCP_MOBILITY_HEALTH_URL:-http://host.docker.internal:8000/health}
+      MCP_MOBILITY_AUTH_MODE: none
+      MCP_STARTUP_REQUIRED: "false"
+    expose:
+      - "8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+
+  worker:
+    build:
+      context: .
+    command: ["mobility-agent", "worker"]
+    restart: "on-failure:5"
+    environment:
+      APP_ENV: local
+      LOG_LEVEL: INFO
+      LOG_FORMAT: json
+      PERSISTENCE_BACKEND: postgres
+      DATABASE_URL: postgresql://mobility_agent:${POSTGRES_PASSWORD:-local-demo-postgres-password}@postgres:5432/mobility_agent
+      DATABASE_AUTO_SETUP: "true"
+      EXECUTION_PAYLOAD_ENCRYPTION_KEY: ${EXECUTION_PAYLOAD_ENCRYPTION_KEY:-local-demo-execution-payload-key}
+      EXECUTION_PAYLOAD_PREVIOUS_ENCRYPTION_KEYS: ${EXECUTION_PAYLOAD_PREVIOUS_ENCRYPTION_KEYS:-[]}
+      IDEMPOTENCY_HMAC_KEY: ${IDEMPOTENCY_HMAC_KEY:-local-demo-idempotency-hmac-key-change-me}
+      EXECUTION_WORKER_ID: ${EXECUTION_WORKER_ID:-auto}
+      EXECUTION_WORKER_LEASE_SECONDS: ${EXECUTION_WORKER_LEASE_SECONDS:-30}
+      EXECUTION_WORKER_HEARTBEAT_SECONDS: ${EXECUTION_WORKER_HEARTBEAT_SECONDS:-5}
+      EXECUTION_WORKER_READINESS_TIMEOUT_SECONDS: ${EXECUTION_WORKER_READINESS_TIMEOUT_SECONDS:-15}
+      EXECUTION_WORKER_POLL_SECONDS: ${EXECUTION_WORKER_POLL_SECONDS:-0.25}
+      EXECUTION_WORKER_MAX_ERROR_BACKOFF_SECONDS: ${EXECUTION_WORKER_MAX_ERROR_BACKOFF_SECONDS:-5}
+      EXECUTION_WORKER_SHUTDOWN_GRACE_SECONDS: ${EXECUTION_WORKER_SHUTDOWN_GRACE_SECONDS:-30}
+      MCP_MOBILITY_URL: ${MCP_MOBILITY_URL:-http://host.docker.internal:8000/mcp}
+      MCP_MOBILITY_HEALTH_URL: ${MCP_MOBILITY_HEALTH_URL:-http://host.docker.internal:8000/health}
+      MCP_MOBILITY_AUTH_MODE: none
+      MCP_STARTUP_REQUIRED: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-m",
+          "barrier_free_mobility_agent.persistence.worker_health",
+        ]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+
+  web:
+    build:
+      context: ./web
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+      WEB_APP_ENV: local
+      WEB_PUBLIC_ORIGIN: "${WEB_PUBLIC_ORIGIN:-http://127.0.0.1:${WEB_PORT:-3000}}"
+      AGENT_INTERNAL_URL: http://agent:8080
+      AGENT_REQUEST_TIMEOUT_MS: ${AGENT_REQUEST_TIMEOUT_MS:-90000}
+      AGENT_BFF_SHARED_SECRET: ${AGENT_BFF_SHARED_SECRET:-local-demo-bff-shared-secret-change-me}
+      AGENT_ANONYMOUS_SESSION_SECRET: ${AGENT_ANONYMOUS_SESSION_SECRET:-local-demo-anonymous-session-secret-change-me}
+    depends_on:
+      agent:
+        condition: service_healthy
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/.next/cache
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  postgres_data:
