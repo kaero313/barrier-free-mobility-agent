@@ -48,9 +48,17 @@
   --color-status-unknown-background: #f1f5f9;
   --color-status-unknown-border: #475569;
 
-  --font-sans: "Pretendard Variable", Pretendard, system-ui, -apple-system,
+  /* `--font-noto-sans-kr` is published by next/font in the App Router layout.
+     The literal name keeps rendering stable where that layout is absent. */
+  --font-sans: var(--font-noto-sans-kr, "Noto Sans KR"), system-ui, -apple-system,
     BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+
+  /* Vendor primitives read these names, so they must resolve to the same
+     product typography instead of the Astryx defaults. */
+  --font-family-body: var(--font-sans);
+  --font-family-heading: var(--font-sans);
+  --font-family-code: var(--font-mono);
   --font-size-caption: 0.875rem;
   --font-size-body: 1rem;
   --font-size-body-large: 1.125rem;

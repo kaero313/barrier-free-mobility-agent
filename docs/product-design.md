@@ -275,7 +275,7 @@ source가 아니라 시각 참고 자료로만 사용하며, 실제 제품 계�
 - cool neutral canvas와 white surface, deep indigo primary를 사용한다.
 - restrained teal은 이동 맥락의 보조 accent와 성공 상태에 제한적으로 사용한다.
 - 확인, 부분 확인, 실패와 미확인은 green·amber·red·slate를 사용하되 text와 icon을 항상 병기한다.
-- 한국어 본문은 `Pretendard Variable`과 system fallback, 기본 16px·line-height 1.6을 사용한다.
+- 한국어 본문은 빌드 시 self-host하는 `Noto Sans KR`과 system fallback, 기본 16px·line-height 1.6을 사용한다. 읽는 사람의 기기에 설치된 폰트나 외부 font host에 의존하지 않는다.
 - 대화는 짧은 발화만 message 형태로 표시하고 긴 결과는 heading이 있는 document card로 렌더링한다.
 - station과 구간은 지도보다 먼저 text와 연결선으로 표현하되 구조화된 route segment가 없으면 장식용 경로를 만들지 않는다.
 - 사용자 화면은 넉넉한 spacing을 유지하고 운영 Console의 고밀도 표·timeline visual language를 가져오지 않는다.
