@@ -1,0 +1,20 @@
+{
+  "schema_version": "1",
+  "status": "pending_live_evaluation",
+  "candidate_version": "google-gemini-3.1-flash-lite-routing.v1",
+  "contract_version": "google.gemini-3.1-flash-lite.generate-content.v1",
+  "contract_sha256": "d7e24f65c3b2d9d15c4a22fb93408742f3f5c7d59851ea9e3d7e5bc687a4c191",
+  "corpus_version": "ambiguous-routing.v1",
+  "corpus_sha256": "48d3e98ab39263fa5433f54ee198ff098fadc2b5669e1ad5e88d75458ee6a0d5",
+  "provider_model_snapshot": "gemini-3.1-flash-lite",
+  "pricing_version": "google-public-pricing.2026-08-03",
+  "pricing_source": "https://ai.google.dev/gemini-api/docs/pricing",
+  "input_usd_nanos_per_token": 250,
+  "output_usd_nanos_per_token": 1500,
+  "maximum_input_tokens_per_call": 8192,
+  "output_reserve_tokens": 512,
+  "required_repetitions": 3,
+  "minimum_exact_accuracy_basis_points": 9500,
+  "maximum_latency_p95_ms": 3000,
+  "maximum_mean_cost_usd_nanos": 1000000
+}

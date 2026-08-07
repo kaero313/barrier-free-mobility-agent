@@ -92,3 +92,35 @@ OPENAI_GPT_5_4_NANO_CONTRACT = HostedModelContract(
     pricing_version="openai-public-pricing.2026-07-13",
     data_policy_version="openai-api-data-controls.2026-07-13",
 )
+
+# Two provider limitations are recorded here rather than hidden, because both weaken
+# guarantees that the OpenAI contract can make:
+#
+# 1. Google publishes no dated snapshot for this model, so ``provider_model_snapshot``
+#    pins a moving stable alias. Identity drift is still detected against the echoed
+#    ``modelVersion``, but a measured accuracy result has no build-level guarantee.
+# 2. Gemini 3 Flash-Lite cannot turn thinking off; its floor is ``thinking_level:
+#    minimal``. ``reasoning_effort`` therefore records ``low``, not ``none``.
+#
+# ``reasoning_tokens_in_output_cap`` is asserted from measurement, not documentation:
+# at ``maxOutputTokens=48`` the provider returned 42 thought tokens plus 1 visible
+# token and stopped with ``MAX_TOKENS``. The adapter re-checks the invariant on every
+# response, so a provider change surfaces as a failure instead of an unbilled overrun.
+GEMINI_3_1_FLASH_LITE_CONTRACT = HostedModelContract(
+    contract_version="google.gemini-3.1-flash-lite.generate-content.v1",
+    provider_alias="google-generative-language",
+    model_alias="gemini-3.1-flash-lite",
+    provider_model_snapshot="gemini-3.1-flash-lite",
+    provider_api_version="v1beta-generate-content",
+    wire_adapter_version="gemini-generate-content-wire.v1",
+    schema_transform_version="gemini-openapi-subset.v1",
+    counter_version="gemini-count-tokens.v1",
+    reasoning_effort="low",
+    text_verbosity="low",
+    context_window_tokens=1_048_576,
+    hard_max_output_tokens=65_536,
+    reasoning_tokens_in_output_cap=True,
+    minimum_application_output_tokens=512,
+    pricing_version="google-public-pricing.2026-08-03",
+    data_policy_version="google-gemini-api-terms.2026-08-03",
+)

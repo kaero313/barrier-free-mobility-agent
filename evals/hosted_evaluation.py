@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import math
@@ -27,9 +28,16 @@ from barrier_free_mobility_agent.domain.usage import UsageSource
 from barrier_free_mobility_agent.integrations.models.contracts import HostedModelContract
 from evals.model_evaluation import CorpusBundle, ProductionEvaluationHarness
 
+# Each adapter prefixes its own safe error codes, so the cap gate matches on the shared
+# suffix rather than on one provider's spelling.
+_OUTPUT_CAP_MISMATCH_SUFFIX = "_OUTPUT_CAP_MISMATCH"
+
 _KNOWN_CANDIDATE_HASHES = {
     "openai-gpt-5.4-nano-routing.v1": (
         "acb378198d6b41e1465210064e2467f8dca8ef2bdaf665bda652e75579d32585"
+    ),
+    "google-gemini-3.1-flash-lite-routing.v1": (
+        "7d685c15aedce00f8e395c85633d1b561fc94b9caa8681972f70dccc2c0a50c0"
     ),
 }
 
@@ -54,7 +62,11 @@ class HostedCandidateManifest(_StrictFrozenModel):
     corpus_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     provider_model_snapshot: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$")
     pricing_version: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$")
-    pricing_source: str = Field(pattern=r"^https://developers\.openai\.com/")
+    # Pricing must be quotable from the provider's own published page, so the origin
+    # allowlist grows one entry per evaluated provider instead of accepting any URL.
+    pricing_source: str = Field(
+        pattern=r"^https://(developers\.openai\.com|ai\.google\.dev)/",
+    )
     input_usd_nanos_per_token: int = Field(gt=0, le=1_000_000)
     output_usd_nanos_per_token: int = Field(gt=0, le=1_000_000)
     maximum_input_tokens_per_call: int = Field(gt=0, le=2_000_000)
@@ -198,8 +210,11 @@ async def evaluate_hosted_candidate(
     contract: HostedModelContract,
     maximum_provider_requests: int,
     maximum_spend_usd_nanos: int,
+    minimum_generate_interval_seconds: float = 0.0,
 ) -> HostedEvaluationReport:
     validate_candidate_binding(candidate, contract, bundle)
+    if minimum_generate_interval_seconds < 0:
+        raise HostedEvaluationError("HOSTED_REQUEST_INTERVAL_INVALID")
     admitted_calls = sum(case.admission_expected for case in bundle.cases)
     required_requests, required_spend = required_live_limits(
         candidate,
@@ -223,6 +238,7 @@ async def evaluate_hosted_candidate(
             candidate=candidate,
             repetition=repetition,
             remaining_provider_requests=maximum_provider_requests - provider_requests,
+            minimum_generate_interval_seconds=minimum_generate_interval_seconds,
         )
         provider_requests += run.provider_requests
         total_cost += run.total_cost_usd_nanos
@@ -255,7 +271,12 @@ async def _evaluate_once(
     candidate: HostedCandidateManifest,
     repetition: int,
     remaining_provider_requests: int,
+    minimum_generate_interval_seconds: float = 0.0,
 ) -> HostedEvaluationRun:
+    # Provider request quotas are an account property, not a model property. Pacing keeps
+    # a quota rejection from being recorded as a model failure; it sits outside the
+    # measured region, so latency, accuracy, and cost stay comparable across candidates.
+    next_generate_at = 0.0
     admitted = 0
     requests = 0
     count_failures = 0
@@ -295,6 +316,12 @@ async def _evaluate_once(
                 blocker_failures += 1
             continue
 
+        if minimum_generate_interval_seconds > 0:
+            delay = next_generate_at - time.monotonic()
+            if delay > 0:
+                await asyncio.sleep(delay)
+            next_generate_at = time.monotonic() + minimum_generate_interval_seconds
+
         started = time.perf_counter_ns()
         requests += 1
         try:
@@ -332,7 +359,7 @@ async def _evaluate_once(
 
         if isinstance(result, ModelFailure):
             failures += 1
-            if result.safe_error_code == "OPENAI_OUTPUT_CAP_MISMATCH":
+            if result.safe_error_code.endswith(_OUTPUT_CAP_MISMATCH_SUFFIX):
                 cap_mismatches += 1
             if case.release_blocker:
                 blocker_failures += 1
