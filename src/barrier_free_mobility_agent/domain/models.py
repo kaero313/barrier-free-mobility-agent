@@ -68,6 +68,7 @@ class AccessibleRestroomRequirement(StrEnum):
 class FacilityType(StrEnum):
     ELEVATOR = "ELEVATOR"
     ESCALATOR = "ESCALATOR"
+    WHEELCHAIR_LIFT = "WHEELCHAIR_LIFT"
     ACCESSIBLE_RESTROOM = "ACCESSIBLE_RESTROOM"
     RESTROOM = "RESTROOM"
     WHEELCHAIR_CHARGER = "WHEELCHAIR_CHARGER"
@@ -87,6 +88,9 @@ class FacilityAnswerState(StrEnum):
     MAINTENANCE = "MAINTENANCE"
     UNAVAILABLE = "UNAVAILABLE"
     NOT_FOUND = "NOT_FOUND"
+    # The provider covers this station but not this facility source, which is a
+    # different fact from "searched and found nothing" and from "could not check".
+    UNSUPPORTED = "UNSUPPORTED"
     UNKNOWN = "UNKNOWN"
 
 
@@ -187,9 +191,10 @@ class FacilityQuestionItem(McpModel):
         if not self.facilities:
             if self.answer_state not in {
                 FacilityAnswerState.NOT_FOUND,
+                FacilityAnswerState.UNSUPPORTED,
                 FacilityAnswerState.UNKNOWN,
             }:
-                raise ValueError("Empty facility item must be NOT_FOUND or UNKNOWN.")
+                raise ValueError("Empty facility item must be NOT_FOUND, UNSUPPORTED, or UNKNOWN.")
             return self
         statuses = {facility.status for facility in self.facilities}
         expected = (
@@ -607,6 +612,10 @@ class PublicFacilityAnswerState(StrEnum):
     MAINTENANCE = "MAINTENANCE"
     UNAVAILABLE = "UNAVAILABLE"
     NOT_CONFIRMED = "NOT_CONFIRMED"
+    # Kept separate from NOT_CONFIRMED: the provider did answer, and its answer is that
+    # this facility source is outside its coverage. Collapsing the two would tell the
+    # reader a check was attempted and inconclusive when none was possible.
+    UNSUPPORTED = "UNSUPPORTED"
     UNKNOWN = "UNKNOWN"
 
 

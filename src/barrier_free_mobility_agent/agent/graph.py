@@ -2235,6 +2235,7 @@ def _facility_tool_query(
         parts.extend(
             {
                 FacilityType.ELEVATOR: "엘리베이터",
+                FacilityType.WHEELCHAIR_LIFT: "휠체어리프트",
                 FacilityType.ACCESSIBLE_RESTROOM: "장애인 화장실",
             }.get(facility_type, facility_type.value)
             for facility_type in facility.facility_types

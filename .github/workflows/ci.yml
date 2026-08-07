@@ -168,7 +168,10 @@ jobs:
         with:
           repository: kaero313/barrier-free-mobility-mcp
           # Upgrade only through a PR that passes this contract job.
-          ref: 591b30fed2dd3cdaa420f01efa0494c7643b9102
+          # f4f8a0f adds the WHEELCHAIR_LIFT facility type and the UNSUPPORTED answer
+          # state, which the agent must accept explicitly because the facility gate
+          # compares provider enums exactly.
+          ref: f4f8a0f88722ae1586a0cbcbe15919e4c8f035fa
           path: barrier-free-mobility-mcp
 
       - name: Install uv

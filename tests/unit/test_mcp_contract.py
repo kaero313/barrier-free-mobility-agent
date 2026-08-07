@@ -58,6 +58,7 @@ def valid_output_schema() -> dict[str, object]:
         "enum": [
             "ELEVATOR",
             "ESCALATOR",
+            "WHEELCHAIR_LIFT",
             "ACCESSIBLE_RESTROOM",
             "RESTROOM",
             "WHEELCHAIR_CHARGER",
@@ -112,6 +113,7 @@ def valid_output_schema() -> dict[str, object]:
                                 "MAINTENANCE",
                                 "UNAVAILABLE",
                                 "NOT_FOUND",
+                                "UNSUPPORTED",
                                 "UNKNOWN",
                             ],
                         },
@@ -382,6 +384,62 @@ def test_facility_capability_rejects_non_object_items() -> None:
         validate_answer_question_tool([tool])
 
     assert captured.value.context["reason"] == "output_items_items_not_object"
+
+
+@pytest.mark.parametrize(
+    ("dropped_value", "expected_reason"),
+    [
+        ("WHEELCHAIR_LIFT", "output_facility_types_enum_incompatible"),
+        ("ACCESSIBLE_RESTROOM", "output_facility_types_enum_incompatible"),
+    ],
+)
+def test_facility_capability_rejects_provider_enum_contraction(
+    dropped_value: str,
+    expected_reason: str,
+) -> None:
+    # A provider that drops a facility type is as incompatible as one that adds an
+    # unknown type: either way the agent would silently mis-handle a real facility.
+    schema = valid_output_schema()
+    properties = cast(dict[str, object], schema["properties"])
+    facility_union = cast(dict[str, object], properties["facility_result"])
+    facility = cast(list[dict[str, object]], facility_union["anyOf"])[0]
+    facility_properties = cast(dict[str, object], facility["properties"])
+    items = cast(dict[str, object], facility_properties["items"])
+    item = cast(dict[str, object], items["items"])
+    item_properties = cast(dict[str, object], item["properties"])
+    facility_type = cast(dict[str, object], item_properties["facility_type"])
+    enum_values = cast(list[str], facility_type["enum"])
+    enum_values.remove(dropped_value)
+    tool = answer_tool()
+    tool.outputSchema = schema
+
+    with pytest.raises(McpContractError) as captured:
+        validate_answer_question_tool([tool])
+
+    assert captured.value.context["reason"] == expected_reason
+
+
+def test_facility_capability_requires_the_unsupported_answer_state() -> None:
+    # `UNSUPPORTED` separates "this source is not covered" from "found nothing", so a
+    # provider without it cannot express the distinction the product relies on.
+    schema = valid_output_schema()
+    properties = cast(dict[str, object], schema["properties"])
+    facility_union = cast(dict[str, object], properties["facility_result"])
+    facility = cast(list[dict[str, object]], facility_union["anyOf"])[0]
+    facility_properties = cast(dict[str, object], facility["properties"])
+    items = cast(dict[str, object], facility_properties["items"])
+    item = cast(dict[str, object], items["items"])
+    item_properties = cast(dict[str, object], item["properties"])
+    answer_state = cast(dict[str, object], item_properties["answer_state"])
+    enum_values = cast(list[str], answer_state["enum"])
+    enum_values.remove("UNSUPPORTED")
+    tool = answer_tool()
+    tool.outputSchema = schema
+
+    with pytest.raises(McpContractError) as captured:
+        validate_answer_question_tool([tool])
+
+    assert captured.value.context["reason"] == "output_answer_state_enum_incompatible"
 
 
 def test_facility_capability_rejects_provider_enum_expansion() -> None:

@@ -600,7 +600,7 @@ export interface components {
          * FacilityType
          * @enum {string}
          */
-        FacilityType: "ELEVATOR" | "ESCALATOR" | "ACCESSIBLE_RESTROOM" | "RESTROOM" | "WHEELCHAIR_CHARGER" | "UNKNOWN";
+        FacilityType: "ELEVATOR" | "ESCALATOR" | "WHEELCHAIR_LIFT" | "ACCESSIBLE_RESTROOM" | "RESTROOM" | "WHEELCHAIR_CHARGER" | "UNKNOWN";
         /**
          * FailedSourceCode
          * @enum {string}
@@ -699,7 +699,7 @@ export interface components {
          * PublicFacilityAnswerState
          * @enum {string}
          */
-        PublicFacilityAnswerState: "AVAILABLE" | "MIXED" | "MAINTENANCE" | "UNAVAILABLE" | "NOT_CONFIRMED" | "UNKNOWN";
+        PublicFacilityAnswerState: "AVAILABLE" | "MIXED" | "MAINTENANCE" | "UNAVAILABLE" | "NOT_CONFIRMED" | "UNSUPPORTED" | "UNKNOWN";
         /**
          * QuestionIntent
          * @enum {string}

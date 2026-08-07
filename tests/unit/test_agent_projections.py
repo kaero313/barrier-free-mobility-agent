@@ -297,3 +297,19 @@ def test_not_found_facility_state_is_projected_as_not_confirmed() -> None:
     assert public_item.answer_state == "NOT_CONFIRMED"
     assert public_item.total_count == 0
     assert public_item.facilities == ()
+
+
+def test_unsupported_facility_state_stays_distinct_from_not_confirmed() -> None:
+    # "outside our coverage" and "checked and not confirmed" are different facts for a
+    # reader deciding whether to travel, so the projection must not merge them.
+    result = facility_question_result().facility_result
+    assert result is not None
+    item = result.items[0].model_copy(
+        update={"answer_state": FacilityAnswerState.UNSUPPORTED, "facilities": []}
+    )
+    presentation = facility_answer_presentation(result.model_copy(update={"items": [item]}))
+
+    public_item = presentation.facility.items[0]
+    assert public_item.answer_state == "UNSUPPORTED"
+    assert public_item.total_count == 0
+    assert public_item.facilities == ()

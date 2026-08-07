@@ -30,6 +30,7 @@ const confidenceLabels = {
 const facilityTypeLabels = {
   ELEVATOR: "엘리베이터",
   ESCALATOR: "에스컬레이터",
+  WHEELCHAIR_LIFT: "휠체어리프트",
   ACCESSIBLE_RESTROOM: "장애인 화장실",
   RESTROOM: "화장실",
   WHEELCHAIR_CHARGER: "휠체어 충전기",
@@ -42,6 +43,7 @@ const facilityStateLabels = {
   MAINTENANCE: "점검 중",
   UNAVAILABLE: "이용 불가",
   NOT_CONFIRMED: "확인되지 않음",
+  UNSUPPORTED: "제공 범위 아님",
   UNKNOWN: "상태 미확인",
 } as const;
 

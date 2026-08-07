@@ -1323,6 +1323,7 @@
         "enum": [
           "ELEVATOR",
           "ESCALATOR",
+          "WHEELCHAIR_LIFT",
           "ACCESSIBLE_RESTROOM",
           "RESTROOM",
           "WHEELCHAIR_CHARGER",
@@ -1604,6 +1605,7 @@
           "MAINTENANCE",
           "UNAVAILABLE",
           "NOT_CONFIRMED",
+          "UNSUPPORTED",
           "UNKNOWN"
         ],
         "title": "PublicFacilityAnswerState",

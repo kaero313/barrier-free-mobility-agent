@@ -28,6 +28,7 @@ const GraphTurnStatusSchema = z.enum(["completed", "interrupted", "failed"]);
 const FacilityTypeSchema = z.enum([
   "ELEVATOR",
   "ESCALATOR",
+  "WHEELCHAIR_LIFT",
   "ACCESSIBLE_RESTROOM",
   "RESTROOM",
   "WHEELCHAIR_CHARGER",
@@ -532,6 +533,7 @@ const FacilityItemViewSchema = z
       "MAINTENANCE",
       "UNAVAILABLE",
       "NOT_CONFIRMED",
+      "UNSUPPORTED",
       "UNKNOWN",
     ]),
     facilities: z.array(FacilityDetailViewSchema),
