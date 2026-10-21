@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from functools import wraps
@@ -34,7 +35,12 @@ from barrier_free_mobility_agent.agent.projections import (
     project_conversation_context,
     project_pending_clarification,
 )
-from barrier_free_mobility_agent.agent.router import DeterministicPreRouter, normalize_input
+from barrier_free_mobility_agent.agent.router import (
+    DeterministicPreRouter,
+    mentions_accessible_restroom,
+    mentions_wheelchair_charger,
+    normalize_input,
+)
 from barrier_free_mobility_agent.agent.state import AgentState, new_turn_state
 from barrier_free_mobility_agent.agent.state_budget import (
     ensure_interrupt_payload_within_budget,
@@ -231,7 +237,7 @@ class MobilityGraphRunner:
             mobility=MobilityContext(),
             facility=FacilityContext(),
         )
-        return routed.decision.intent == AgentIntent.TRIP_ACCESSIBILITY or (
+        return routed.decision.intent in _TRIP_INTENTS or (
             routed.decision.intent == AgentIntent.FACILITY_STATUS
             and McpCapability.FACILITY_QUESTION in self._gateway.contract_snapshot.capabilities
         )
@@ -804,26 +810,24 @@ class MobilityGraphRunner:
 
         trip = TripContext.model_validate(state.get("trip_context", {}))
         mobility = MobilityContext.model_validate(state.get("mobility_context", {}))
-        trip_update: dict[str, str | None] = {}
+        trip_update: dict[str, str | bool | None] = {}
         mobility_update: dict[str, MobilityFlag] = {}
         for input_id, value in values.items():
             if isinstance(value, TextClarificationAnswerValue) and input_id == "origin":
+                same_origin = value.value == trip.origin_query
                 trip_update.update(
                     origin_query=value.value,
-                    origin_station=(
-                        trip.origin_station if value.value == trip.origin_query else None
-                    ),
-                    origin_line=trip.origin_line if value.value == trip.origin_query else None,
+                    origin_station=trip.origin_station if same_origin else None,
+                    origin_line=trip.origin_line if same_origin else None,
+                    origin_line_explicit=same_origin and trip.origin_line_explicit,
                 )
             elif isinstance(value, TextClarificationAnswerValue) and input_id == "destination":
+                same_destination = value.value == trip.destination_query
                 trip_update.update(
                     destination_query=value.value,
-                    destination_station=(
-                        trip.destination_station if value.value == trip.destination_query else None
-                    ),
-                    destination_line=(
-                        trip.destination_line if value.value == trip.destination_query else None
-                    ),
+                    destination_station=trip.destination_station if same_destination else None,
+                    destination_line=trip.destination_line if same_destination else None,
+                    destination_line_explicit=(same_destination and trip.destination_line_explicit),
                 )
             elif isinstance(value, TriStateClarificationAnswerValue) and input_id in {
                 "can_use_stairs",
@@ -1312,12 +1316,18 @@ class MobilityGraphRunner:
 
         if not candidates:
             update = (
-                {"origin_query": selection, "origin_station": None, "origin_line": None}
+                {
+                    "origin_query": selection,
+                    "origin_station": None,
+                    "origin_line": None,
+                    "origin_line_explicit": False,
+                }
                 if field == "origin"
                 else {
                     "destination_query": selection,
                     "destination_station": None,
                     "destination_line": None,
+                    "destination_line_explicit": False,
                 }
             )
             if field == "origin":
@@ -1360,10 +1370,19 @@ class MobilityGraphRunner:
             )
 
         station_name = selected["station_name"]
+        # 후보에서 고른 호선은 사용자가 정한 호선이다.
         update = (
-            {"origin_station": station_name, "origin_line": selected["line"]}
+            {
+                "origin_station": station_name,
+                "origin_line": selected["line"],
+                "origin_line_explicit": True,
+            }
             if field == "origin"
-            else {"destination_station": station_name, "destination_line": selected["line"]}
+            else {
+                "destination_station": station_name,
+                "destination_line": selected["line"],
+                "destination_line_explicit": True,
+            }
         )
         return AgentState(
             trip_context=trip.model_copy(update=update).model_dump(mode="json"),
@@ -1388,15 +1407,27 @@ class MobilityGraphRunner:
         if origin_station is None or destination_station is None:
             raise AgentPolicyViolationError(context={"reason": "resolved_trip_missing"})
         profile = MobilityProfile.model_validate(state["mcp_profile"])
+        decision = IntentDecision.model_validate(state["intent_decision"])
+        # "다른 경로"를 물었으면 MCP가 비교한 다른 경로 후보도 답하게 한다.
+        compare_alternatives = decision.intent == AgentIntent.ALTERNATIVE_REQUEST
         try:
             result = await self._execute_tool(
                 state,
                 runtime=runtime,
                 capability=ToolCapability.GENERATE_ACCESSIBILITY_BRIEF,
+                # 역 이름만으로 정해진 호선은 넘기지 않는다. 넘기면 MCP가 사용자가 고른
+                # 호선으로 알고 그 역에 다른 호선으로 닿는 경로를 버린다.
                 operation=lambda: runtime.context.gateway.generate_accessibility_brief(
-                    _line_aware_station(origin_station, trip.origin_line),
-                    _line_aware_station(destination_station, trip.destination_line),
+                    _line_aware_station(
+                        origin_station,
+                        trip.origin_line if trip.origin_line_explicit else None,
+                    ),
+                    _line_aware_station(
+                        destination_station,
+                        trip.destination_line if trip.destination_line_explicit else None,
+                    ),
                     profile,
+                    compare_alternatives=compare_alternatives,
                 ),
                 summarize=_generate_accessibility_brief_tool_summary,
             )
@@ -1422,7 +1453,7 @@ class MobilityGraphRunner:
         pending = (
             PendingClarification(
                 kind=ClarificationKind.MCP_CLARIFICATION,
-                intent=AgentIntent.TRIP_ACCESSIBILITY,
+                intent=decision.intent,
                 fields=_mcp_clarification_fields(list(pending_questions)),
                 questions=pending_questions,
                 prompts=tuple(
@@ -1539,7 +1570,7 @@ class MobilityGraphRunner:
     ) -> PendingClarification | None:
         if decision.intent == AgentIntent.FACILITY_STATUS:
             return None
-        if decision.intent != AgentIntent.TRIP_ACCESSIBILITY:
+        if decision.intent not in _TRIP_INTENTS:
             question = "출발역, 도착역과 필요한 이동 조건을 알려주세요."
             return PendingClarification(
                 kind=ClarificationKind.UNSUPPORTED_INTENT,
@@ -1547,7 +1578,11 @@ class MobilityGraphRunner:
                 fields=("intent",),
                 questions=(question,),
                 prompts=(PendingPrompt(id="intent", question=question, fields=("intent",)),),
-                message="현재 질문의 이동 요청 범위를 명확히 확인해야 합니다.",
+                # 무엇을 확인할 수 있는지 알려 줘야 사용자가 질문을 고쳐 쓸 수 있다.
+                message=(
+                    "이 서비스는 지하철 경로의 접근성과 역 엘리베이터·장애인화장실 정보를 "
+                    "확인합니다."
+                ),
             )
         if not decision.missing_fields:
             return None
@@ -1597,11 +1632,12 @@ class MobilityGraphRunner:
             )
         return PendingClarification(
             kind=ClarificationKind.REQUIRED_FIELDS,
-            intent=AgentIntent.TRIP_ACCESSIBILITY,
+            # 대안 요청이면 되묻기에 답한 뒤에도 다른 경로 비교를 이어 간다.
+            intent=decision.intent,
             fields=decision.missing_fields,
             questions=tuple(prompt.question for prompt in prompts),
             prompts=tuple(prompts),
-            message="안전한 이동 경로 확인을 위해 정보가 더 필요합니다.",
+            message=_required_fields_message(missing),
         )
 
     def _advance(
@@ -1989,6 +2025,10 @@ def _station_option(station: Station) -> dict[str, str | None]:
     }
 
 
+_ANSWERED_LINE = re.compile(r"(\d{1,2})\s*호선")
+_TRIP_INTENTS = frozenset({AgentIntent.TRIP_ACCESSIBILITY, AgentIntent.ALTERNATIVE_REQUEST})
+
+
 def _line_aware_station(station_name: str, line: str | None) -> str:
     line_label = _normalize_line_label(line)
     return f"{line_label} {station_name}" if line_label is not None else station_name
@@ -2052,6 +2092,30 @@ def _outcome_from_trip_result(result: AccessibilityResult) -> AnswerOutcome:
     )
 
 
+def _required_fields_message(missing: set[str]) -> str:
+    """Explain why the active clarification is needed instead of restating that it is."""
+    stations = [
+        label
+        for field, label in (("origin", "출발역"), ("destination", "도착역"))
+        if field in missing
+    ]
+    mobility = [
+        label
+        for field, label in (("can_use_stairs", "계단"), ("can_use_escalator", "에스컬레이터"))
+        if field in missing
+    ]
+    if stations and mobility:
+        return (
+            f"{'과 '.join(stations)}, {'·'.join(mobility)} 이용 여부를 알아야 "
+            "이동 경로를 확인할 수 있습니다."
+        )
+    if stations:
+        return f"{'과 '.join(stations)}을 알아야 이동 경로를 조회할 수 있습니다."
+    if mobility:
+        return f"{'·'.join(mobility)} 이용 여부에 따라 확인해야 할 이동 동선이 달라집니다."
+    return "이동 경로를 확인하려면 정보가 더 필요합니다."
+
+
 def _mcp_clarification_fields(questions: list[str]) -> tuple[str, ...]:
     text = " ".join(questions)
     fields: list[str] = []
@@ -2061,15 +2125,15 @@ def _mcp_clarification_fields(questions: list[str]) -> tuple[str, ...]:
         fields.append("can_use_escalator")
     if "엘리베이터" in text or "승강기" in text:
         fields.append("need_elevator_only")
-    if "휠체어" in text and "휠체어 충전" not in text:
+    if "휠체어" in text and not mentions_wheelchair_charger(text):
         fields.append("wheelchair")
     if "유모차" in text:
         fields.append("stroller")
     if "지팡이" in text or "보행기" in text or "워커" in text:
         fields.append("cane_or_walker")
-    if "장애인 화장실" in text:
+    if mentions_accessible_restroom(text):
         fields.append("need_accessible_restroom")
-    if "휠체어 충전" in text:
+    if mentions_wheelchair_charger(text):
         fields.append("need_wheelchair_charger")
     unique_fields = tuple(dict.fromkeys(fields))
     selection_markers = ("어떤", "무엇", "중 ", "선택", "알려")
@@ -2104,9 +2168,9 @@ def _is_positive_yes_no_question(field: str, text: str) -> bool:
             marker in text for marker in ("사용", "이용")
         )
     if field == "need_accessible_restroom":
-        return "장애인 화장실" in text and "필요" in text
+        return mentions_accessible_restroom(text) and "필요" in text
     if field == "need_wheelchair_charger":
-        return "휠체어 충전" in text and "필요" in text
+        return mentions_wheelchair_charger(text) and "필요" in text
     return False
 
 
@@ -2222,7 +2286,12 @@ def _facility_tool_query(
     parts: list[str] = []
     target = facility.target_station or facility.target_query
     if target is not None:
-        parts.append(_line_aware_station(target, facility.target_line))
+        line = facility.target_line
+        if line is None and (answered := _ANSWERED_LINE.search(current_input)) is not None:
+            # 호선을 되물은 뒤 "2호선"처럼 호선만 답하면, 역 이름 앞에 붙여야 MCP가 그 역의
+            # 호선으로 읽는다. 문장 끝에 두면 같은 질문을 다시 받는다.
+            line = f"{int(answered.group(1))}호선"
+        parts.append(_line_aware_station(target, line))
     has_explicit_type = any(term in current_input for term in ("엘리베이터", "승강기", "화장실"))
     if facility.accessible_restroom_confirmation_pending and current_input in {
         "네",
@@ -2259,7 +2328,8 @@ def _public_question_intent(pending: PendingClarification) -> QuestionIntent:
     if pending.intent == AgentIntent.FACILITY_STATUS:
         return QuestionIntent.FACILITY_STATUS
     if pending.intent == AgentIntent.ALTERNATIVE_REQUEST:
-        return QuestionIntent.ALTERNATIVE_REQUEST
+        # 대안 요청은 경로 조회 흐름으로 처리하므로 화면에는 경로 조회로 보인다.
+        return QuestionIntent.TRIP_ACCESSIBILITY
     return (
         QuestionIntent.TRIP_ACCESSIBILITY
         if pending.kind != ClarificationKind.UNSUPPORTED_INTENT
