@@ -29,6 +29,7 @@ from barrier_free_mobility_agent.domain.errors import (
 from barrier_free_mobility_agent.domain.models import (
     AccessibilityQuestionResult,
     AccessibilityResult,
+    AlternativeRequestKind,
     ContractStatus,
     McpCapability,
     McpContractSnapshot,
@@ -41,6 +42,7 @@ from barrier_free_mobility_agent.integrations.mcp.contract import (
     ANSWER_QUESTION_TOOL,
     GENERATE_ACCESSIBILITY_BRIEF_TOOL,
     RESOLVE_STATION_TOOL,
+    brief_compares_alternatives,
     fingerprint_tools,
     validate_health_payload,
     validate_required_tools,
@@ -171,6 +173,7 @@ class LangChainMcpGateway:
                 )
                 tools = await self._list_tools()
                 capabilities = validate_required_tools(tools)
+                compares_alternatives = brief_compares_alternatives(tools)
             except asyncio.CancelledError:
                 raise
             except McpContractError as exc:
@@ -239,6 +242,7 @@ class LangChainMcpGateway:
                 checked_at=checked_at,
                 tool_names=tuple(sorted(tool.name for tool in tools)),
                 capabilities=capabilities,
+                brief_compares_alternatives=compares_alternatives,
                 schema_fingerprint=fingerprint_tools(tools),
             )
             logger.info(
@@ -273,6 +277,13 @@ class LangChainMcpGateway:
         if McpCapability.FACILITY_QUESTION not in self._contract_snapshot.capabilities:
             raise McpContractError(context={"reason": "facility_capability_unavailable"})
         result = await self.answer_accessibility_question(question)
+        if (
+            result.intent == QuestionIntent.ALTERNATIVE_REQUEST
+            and result.parsed.alternative_request_kind == AlternativeRequestKind.STATION_FACILITY
+        ):
+            # "엘베 고장났는데 대안 있어?"처럼 한 역의 다른 시설을 묻는 대안 질문도 그 역의 시설
+            # 답이다. 경로 대안과 섞이지 않게 역 시설 대안만 시설 질문으로 받는다.
+            result = result.model_copy(update={"intent": QuestionIntent.FACILITY_STATUS})
         if result.intent != QuestionIntent.FACILITY_STATUS:
             raise McpResponseValidationError(
                 context={
@@ -294,14 +305,19 @@ class LangChainMcpGateway:
         origin: str,
         destination: str,
         profile: MobilityProfile,
+        *,
+        compare_alternatives: bool = False,
     ) -> AccessibilityResult:
+        arguments: dict[str, Any] = {
+            "origin": origin,
+            "destination": destination,
+            "mobility_profile": profile.model_dump(mode="json"),
+        }
+        if compare_alternatives and self._contract_snapshot.brief_compares_alternatives:
+            arguments["compare_alternatives"] = True
         return await self._call_typed_tool(
             GENERATE_ACCESSIBILITY_BRIEF_TOOL,
-            {
-                "origin": origin,
-                "destination": destination,
-                "mobility_profile": profile.model_dump(mode="json"),
-            },
+            arguments,
             AccessibilityResult,
         )
 

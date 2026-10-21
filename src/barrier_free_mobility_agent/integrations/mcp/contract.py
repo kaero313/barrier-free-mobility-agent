@@ -96,6 +96,18 @@ def validate_required_tools(tools: Sequence[Tool]) -> tuple[McpCapability, ...]:
     return tuple(capabilities)
 
 
+def brief_compares_alternatives(tools: Sequence[Tool]) -> bool:
+    tool = next(
+        (item for item in tools if item.name == GENERATE_ACCESSIBILITY_BRIEF_TOOL),
+        None,
+    )
+    if tool is None:
+        return False
+    properties = _mapping(tool.inputSchema.get("properties"))
+    option = _mapping(properties.get("compare_alternatives"))
+    return _find_type(option, "boolean", tool.inputSchema) is not None
+
+
 def validate_answer_question_tool(tools: Sequence[Tool]) -> bool:
     tool = next((item for item in tools if item.name == ANSWER_QUESTION_TOOL), None)
     if tool is None:

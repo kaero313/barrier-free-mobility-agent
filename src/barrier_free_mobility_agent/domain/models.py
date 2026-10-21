@@ -886,5 +886,8 @@ class McpContractSnapshot(BaseModel):
     checked_at: datetime | None = None
     tool_names: tuple[str, ...] = ()
     capabilities: tuple[McpCapability, ...] = ()
+    # 경로 답변 Tool이 다른 경로 비교(compare_alternatives) 입력을 받는지. 받지 않는 예전 MCP에는
+    # 이 입력을 보내지 않는다.
+    brief_compares_alternatives: bool = False
     schema_fingerprint: str | None = None
     error_code: str | None = None

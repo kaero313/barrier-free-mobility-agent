@@ -179,9 +179,16 @@ class OrderedGateway(FakeMcpGateway):
         origin: str,
         destination: str,
         profile: MobilityProfile,
+        *,
+        compare_alternatives: bool = False,
     ) -> AccessibilityResult:
         self.order.append("gateway:generate_accessibility_brief")
-        return await super().generate_accessibility_brief(origin, destination, profile)
+        return await super().generate_accessibility_brief(
+            origin,
+            destination,
+            profile,
+            compare_alternatives=compare_alternatives,
+        )
 
 
 def correlation(thread_id: str, *, attempt: int = 1) -> RunExecutionCorrelation:

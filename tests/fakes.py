@@ -47,6 +47,7 @@ class FakeMcpGateway:
         self.answer_calls: list[str] = []
         self.resolve_calls: list[str] = []
         self.brief_calls: list[tuple[str, str, MobilityProfile]] = []
+        self.brief_compare_alternatives: list[bool] = []
         self.closed = False
 
     @property
@@ -93,8 +94,11 @@ class FakeMcpGateway:
         origin: str,
         destination: str,
         profile: MobilityProfile,
+        *,
+        compare_alternatives: bool = False,
     ) -> AccessibilityResult:
         self.brief_calls.append((origin, destination, profile))
+        self.brief_compare_alternatives.append(compare_alternatives)
         if self.brief_error is not None:
             raise self.brief_error
         if self.brief_result is not None:

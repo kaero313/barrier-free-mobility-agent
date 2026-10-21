@@ -43,6 +43,8 @@ class MobilityMcpGateway(Protocol):
         origin: str,
         destination: str,
         profile: MobilityProfile,
+        *,
+        compare_alternatives: bool = False,
     ) -> AccessibilityResult: ...
 
     async def close(self) -> None: ...
