@@ -37,6 +37,11 @@ _REQUIRED_CAPABILITIES_BY_INTENT: dict[AgentIntent, tuple[ToolCapability, ...]] 
         ToolCapability.GENERATE_ACCESSIBILITY_BRIEF,
     ),
     AgentIntent.FACILITY_STATUS: (ToolCapability.ANSWER_FACILITY_QUESTION,),
+    # "다른 경로"는 같은 경로 조회에 다른 경로 비교만 더해 MCP에 묻는다.
+    AgentIntent.ALTERNATIVE_REQUEST: (
+        ToolCapability.RESOLVE_STATION,
+        ToolCapability.GENERATE_ACCESSIBILITY_BRIEF,
+    ),
 }
 
 

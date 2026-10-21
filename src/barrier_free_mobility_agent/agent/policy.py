@@ -13,7 +13,7 @@ from barrier_free_mobility_agent.domain.routing import (
 
 class ToolPolicy:
     def build_plan(self, decision: IntentDecision) -> ExecutionPlan:
-        if decision.intent == AgentIntent.TRIP_ACCESSIBILITY:
+        if decision.intent in {AgentIntent.TRIP_ACCESSIBILITY, AgentIntent.ALTERNATIVE_REQUEST}:
             return ExecutionPlan(
                 playbook=Playbook.STRUCTURED_TRIP_V1,
                 allowed_tools=required_capabilities_for_intent(decision.intent),
