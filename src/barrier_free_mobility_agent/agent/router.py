@@ -14,6 +14,7 @@ from barrier_free_mobility_agent.domain.mobility import (
     MobilityContext,
     MobilityFlag,
     SlotSource,
+    TriState,
 )
 from barrier_free_mobility_agent.domain.routing import (
     AgentIntent,
@@ -22,10 +23,28 @@ from barrier_free_mobility_agent.domain.routing import (
     required_capabilities_for_intent,
 )
 
+_LINE_TOKEN = r"\d{1,2}\s*호선"
+
+
+def _endpoint_pattern(name: str) -> str:
+    # 역 이름 앞("2호선 시청역"), 뒤("시청역 2호선"), 괄호("시청(2호선)")에 붙은 호선을
+    # 역 이름과 따로 잡는다. 호선이 역 이름에 섞이면 경로 패턴이 어긋나 두 역을 다시 묻게 된다.
+    return (
+        rf"(?:(?P<{name}_line_before>{_LINE_TOKEN})\s*)?"
+        rf"(?P<{name}>[가-힣A-Za-z0-9·]+?)"
+        rf"(?:\s*\(\s*(?P<{name}_line_paren>{_LINE_TOKEN})\s*\)"
+        rf"|역?\s*(?P<{name}_line_after>{_LINE_TOKEN}))?"
+    )
+
+
 _ROUTE_PATTERN = re.compile(
-    r"(?P<origin>[가-힣A-Za-z0-9·]+?)(?:역?\s*에서|서)\s*"
-    r"(?P<destination>[가-힣A-Za-z0-9·]+?)역?\s*까지"
+    _endpoint_pattern("origin")
+    + r"(?:역?\s*에서|서)\s*"
+    + _endpoint_pattern("destination")
+    + r"역?\s*까지"
 )
+_RESTROOM_PATTERN = re.compile(r"장애인\s*화장실")
+_WHEELCHAIR_CHARGER_PATTERN = re.compile(r"휠체어\s*충전")
 _MAX_TRANSFER_PATTERN = re.compile(r"환승\s*(?P<count>\d+)\s*번")
 _WHEELCHAIR_NEGATIVE_PATTERN = re.compile(
     r"(?:휠체어\s*없이|"
@@ -35,7 +54,7 @@ _WHEELCHAIR_NEGATIVE_PATTERN = re.compile(
 )
 _NEGATIVE_MARKERS = ("못", "불가", "어려", "안 돼", "안돼", "피하고", "없이", "없")
 _POSITIVE_MARKERS = ("가능", "할 수", "쓸 수", "이용해도", "괜찮")
-_SUPPORTED_FACILITY_TERMS = ("엘리베이터", "승강기", "화장실")
+_SUPPORTED_FACILITY_TERMS = ("엘리베이터", "엘베", "승강기", "화장실")
 _ALTERNATIVE_TERMS = ("다른 경로", "대안 경로", "우회 경로", "이 경로 말고")
 
 
@@ -77,6 +96,9 @@ class DeterministicPreRouter:
         if pending is not None and pending.intent == AgentIntent.FACILITY_STATUS:
             intent = AgentIntent.FACILITY_STATUS
             signal_codes = ("facility_clarification_resume",)
+        elif pending is not None and pending.intent == AgentIntent.ALTERNATIVE_REQUEST:
+            intent = AgentIntent.ALTERNATIVE_REQUEST
+            signal_codes = ("alternative_clarification_resume",)
         elif any(term in normalized for term in _ALTERNATIVE_TERMS):
             intent = AgentIntent.ALTERNATIVE_REQUEST
             signal_codes = ("alternative_term",)
@@ -102,7 +124,7 @@ class DeterministicPreRouter:
             signal_codes = ("no_deterministic_match",)
 
         missing: list[str] = []
-        if intent == AgentIntent.TRIP_ACCESSIBILITY:
+        if intent in {AgentIntent.TRIP_ACCESSIBILITY, AgentIntent.ALTERNATIVE_REQUEST}:
             if updated_trip.origin_query is None:
                 missing.append("origin")
             if updated_trip.destination_query is None:
@@ -131,29 +153,45 @@ class DeterministicPreRouter:
             return current
         raw_origin = _clean_station_query(match.group("origin"))
         destination = _clean_station_query(match.group("destination"))
+        if not raw_origin or not destination:
+            return current
+        origin_line = _matched_line(match, "origin")
+        destination_line = _matched_line(match, "destination")
         contextual_origin = raw_origin in {"거기", "그곳", "그쪽"}
         origin = (
             current.destination_station or current.destination_query
             if contextual_origin
             else raw_origin
         )
+        # 같은 역이라도 다른 호선을 말하면 이전에 확정한 역을 버리고 그 호선으로 다시 찾는다.
+        keep_origin = origin == current.origin_query and origin_line in (None, current.origin_line)
+        keep_destination = destination == current.destination_query and destination_line in (
+            None,
+            current.destination_line,
+        )
         return TripContext(
             origin_query=origin,
             destination_query=destination,
-            origin_station=None if origin != current.origin_query else current.origin_station,
-            destination_station=(
-                None if destination != current.destination_query else current.destination_station
-            ),
-            origin_line=(
+            origin_station=current.origin_station if keep_origin else None,
+            destination_station=current.destination_station if keep_destination else None,
+            origin_line=origin_line
+            or (
                 current.destination_line
                 if contextual_origin
                 else current.origin_line
-                if origin == current.origin_query
+                if keep_origin
                 else None
             ),
-            destination_line=(
-                current.destination_line if destination == current.destination_query else None
+            destination_line=destination_line
+            or (current.destination_line if keep_destination else None),
+            origin_line_explicit=origin_line is not None
+            or (
+                current.destination_line_explicit
+                if contextual_origin
+                else keep_origin and current.origin_line_explicit
             ),
+            destination_line_explicit=destination_line is not None
+            or (keep_destination and current.destination_line_explicit),
         )
 
     def _extract_mobility(
@@ -201,9 +239,14 @@ class DeterministicPreRouter:
 
         if "엘리베이터만" in text or "승강기만" in text:
             updates["need_elevator_only"] = MobilityFlag.known(True, source)
-        if "장애인 화장실" in text:
+            # 엘리베이터로만 다닌다면 계단·에스컬레이터를 쓰지 않는 동선을 봐야 한다. 따로 말하지
+            # 않았으면 다시 묻지 않고 쓰지 않는 쪽으로 둔다.
+            for field in ("can_use_stairs", "can_use_escalator"):
+                if field not in updates and getattr(current, field).value == TriState.UNKNOWN:
+                    updates[field] = MobilityFlag.known(False, SlotSource.DERIVED_CONSERVATIVE)
+        if mentions_accessible_restroom(text):
             updates["need_accessible_restroom"] = MobilityFlag.known(True, source)
-        if "휠체어 충전" in text:
+        if mentions_wheelchair_charger(text):
             updates["need_wheelchair_charger"] = MobilityFlag.known(True, source)
         if "환승 적" in text or "환승을 줄" in text or "환승 없이" in text:
             updates["avoid_many_transfers"] = MobilityFlag.known(True, source)
@@ -222,8 +265,31 @@ def normalize_input(text: str) -> str:
     return " ".join(normalized.split())
 
 
+def mentions_accessible_restroom(text: str) -> bool:
+    # "장애인화장실"처럼 붙여 써도 같은 조건으로 본다.
+    return _RESTROOM_PATTERN.search(text) is not None
+
+
+def mentions_wheelchair_charger(text: str) -> bool:
+    return _WHEELCHAIR_CHARGER_PATTERN.search(text) is not None
+
+
 def _clean_station_query(value: str) -> str:
     return value.strip().removesuffix("역")
+
+
+def _matched_line(match: re.Match[str], name: str) -> str | None:
+    raw = next(
+        (
+            value
+            for suffix in ("line_before", "line_paren", "line_after")
+            if (value := match.group(f"{name}_{suffix}"))
+        ),
+        None,
+    )
+    if raw is None:
+        return None
+    return f"{int(raw.removesuffix('호선').strip())}호선"
 
 
 def _explicit_ability(text: str, term: str) -> bool | None:

@@ -25,6 +25,10 @@ class TripContext(BaseModel):
     destination_station: str | None = None
     origin_line: str | None = None
     destination_line: str | None = None
+    # 사용자가 호선을 직접 말했거나 후보에서 골랐는지. 역 이름만으로 정해진 호선은 MCP에
+    # 넘기지 않아, 경로가 그 역에 다른 호선으로 닿아도 경로를 버리지 않게 한다.
+    origin_line_explicit: bool = False
+    destination_line_explicit: bool = False
 
 
 class FacilityContext(BaseModel):
