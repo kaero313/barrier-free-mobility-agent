@@ -239,6 +239,90 @@ def test_deictic_origin_uses_only_confirmed_previous_destination() -> None:
     assert routed.trip.origin_line == "2호선"
 
 
+@pytest.mark.parametrize(
+    "text",
+    [
+        "2호선 시청역에서 9호선 고속터미널역까지 갈 수 있어?",
+        "2호선시청에서 9호선고속터미널까지 갈 수 있어?",
+        "시청역 2호선에서 고속터미널역 9호선까지 갈 수 있어?",
+        "시청(2호선)에서 고속터미널(9호선)까지 갈 수 있어?",
+    ],
+)
+def test_line_written_next_to_station_is_kept_apart_from_station_name(text: str) -> None:
+    routed = DeterministicPreRouter().route(
+        text,
+        trip=TripContext(),
+        mobility=MobilityContext(),
+    )
+
+    assert routed.decision.intent == AgentIntent.TRIP_ACCESSIBILITY
+    assert "origin" not in routed.decision.missing_fields
+    assert "destination" not in routed.decision.missing_fields
+    assert routed.trip.origin_query == "시청"
+    assert routed.trip.origin_line == "2호선"
+    assert routed.trip.destination_query == "고속터미널"
+    assert routed.trip.destination_line == "9호선"
+
+
+def test_line_on_one_endpoint_leaves_other_line_unset() -> None:
+    routed = DeterministicPreRouter().route(
+        "홍대입구역에서 9호선 고속터미널역까지 휠체어로 갈 수 있어?",
+        trip=TripContext(),
+        mobility=MobilityContext(),
+    )
+
+    assert routed.trip.origin_query == "홍대입구"
+    assert routed.trip.origin_line is None
+    assert routed.trip.destination_query == "고속터미널"
+    assert routed.trip.destination_line == "9호선"
+
+
+def test_restating_station_with_other_line_drops_previously_resolved_station() -> None:
+    previous = TripContext(
+        origin_query="홍대입구",
+        destination_query="고속터미널",
+        origin_station="홍대입구",
+        destination_station="고속터미널",
+        origin_line="2호선",
+        destination_line="3호선",
+    )
+
+    same_line = DeterministicPreRouter().route(
+        "홍대입구역에서 고속터미널역까지 다시 알려줘",
+        trip=previous,
+        mobility=MobilityContext(),
+    )
+    other_line = DeterministicPreRouter().route(
+        "홍대입구역에서 9호선 고속터미널역까지 다시 알려줘",
+        trip=previous,
+        mobility=MobilityContext(),
+    )
+
+    assert same_line.trip == previous
+    assert other_line.trip.origin_station == "홍대입구"
+    assert other_line.trip.origin_line == "2호선"
+    assert other_line.trip.destination_station is None
+    assert other_line.trip.destination_line == "9호선"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "장애인화장실이 꼭 필요하고 휠체어충전도 해야 해요. 홍대입구역에서 삼성역까지",
+        "장애인 화장실이 꼭 필요하고 휠체어 충전도 해야 해요. 홍대입구역에서 삼성역까지",
+    ],
+)
+def test_restroom_and_charger_needs_are_detected_with_or_without_space(text: str) -> None:
+    routed = DeterministicPreRouter().route(
+        text,
+        trip=TripContext(),
+        mobility=MobilityContext(),
+    )
+
+    assert routed.mobility.need_accessible_restroom.value == TriState.TRUE
+    assert routed.mobility.need_wheelchair_charger.value == TriState.TRUE
+
+
 def test_deictic_origin_without_context_remains_missing() -> None:
     routed = DeterministicPreRouter().route(
         "거기서 시청역까지는?",
@@ -296,3 +380,51 @@ def test_structured_decision_rejects_injected_tool_name() -> None:
                 "tool_name": "unrestricted_tool",
             }
         )
+
+
+def test_elevator_only_implies_no_stairs_or_escalator_without_asking() -> None:
+    routed = DeterministicPreRouter().route(
+        "유모차로 서울역에서 강남역까지 가려는데 엘리베이터만 탈 수 있어",
+        trip=TripContext(),
+        mobility=MobilityContext(),
+    )
+
+    assert routed.mobility.need_elevator_only.value == TriState.TRUE
+    assert routed.mobility.can_use_stairs.value == TriState.FALSE
+    assert routed.mobility.can_use_escalator.value == TriState.FALSE
+    assert routed.mobility.can_use_stairs.source == SlotSource.DERIVED_CONSERVATIVE
+    assert routed.decision.missing_fields == ()
+
+
+def test_elevator_only_keeps_an_escalator_answer_the_user_gave() -> None:
+    routed = DeterministicPreRouter().route(
+        "에스컬레이터는 이용할 수 있어요. 엘리베이터만 있으면 돼요. 시청역에서 강남역까지",
+        trip=TripContext(),
+        mobility=MobilityContext(),
+    )
+
+    assert routed.mobility.can_use_escalator.value == TriState.TRUE
+    assert routed.mobility.can_use_escalator.source == SlotSource.USER_EXPLICIT
+
+
+def test_line_the_user_wrote_is_marked_as_chosen() -> None:
+    routed = DeterministicPreRouter().route(
+        "2호선 잠실역에서 수서역까지 휠체어로 갈 수 있어?",
+        trip=TripContext(),
+        mobility=MobilityContext(),
+    )
+
+    assert routed.trip.origin_line == "2호선"
+    assert routed.trip.origin_line_explicit is True
+    assert routed.trip.destination_line is None
+    assert routed.trip.destination_line_explicit is False
+
+
+def test_short_elevator_word_is_a_facility_question() -> None:
+    routed = DeterministicPreRouter().route(
+        "강남역 엘베 고장났는데 대안 있어?",
+        trip=TripContext(),
+        mobility=MobilityContext(),
+    )
+
+    assert routed.decision.intent == AgentIntent.FACILITY_STATUS
