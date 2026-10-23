@@ -153,3 +153,28 @@ async def test_station_choice_token_selects_candidate_without_label_parsing(
     assert completed.state["trip_context"]["origin_line"] == "2호선"
     assert gateway.resolve_calls == ["시청", "삼성"]
     assert gateway.brief_calls[0][0] == "2호선 시청"
+
+
+@pytest.mark.asyncio
+async def test_required_fields_message_explains_why_the_conditions_are_needed(
+    settings: Settings,
+) -> None:
+    gateway = FakeMcpGateway()
+    runner = MobilityGraphRunner(gateway, settings)
+
+    missing_everything = await runner.start(
+        "휠체어로 갈 수 있어?",
+        thread_id="required-message-all",
+    )
+    missing_mobility = await runner.start(
+        "휠체어로 홍대입구역에서 삼성역까지 갈 수 있어?",
+        thread_id="required-message-mobility",
+    )
+
+    # The form title already says more information is needed; the message gives the reason.
+    assert missing_everything.outcome.user_message == (
+        "출발역과 도착역, 계단·에스컬레이터 이용 여부를 알아야 이동 경로를 확인할 수 있습니다."
+    )
+    assert missing_mobility.outcome.user_message == (
+        "계단·에스컬레이터 이용 여부에 따라 확인해야 할 이동 동선이 달라집니다."
+    )

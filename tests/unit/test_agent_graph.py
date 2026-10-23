@@ -87,6 +87,38 @@ async def test_clear_trip_executes_fixed_trajectory_and_stores_json_state(
 
 
 @pytest.mark.asyncio
+async def test_line_prefixed_stations_and_unspaced_restroom_reach_mcp(
+    settings: Settings,
+) -> None:
+    gateway = FakeMcpGateway()
+    gateway.station_results = {
+        "2호선 시청": StationResolutionResult(
+            query="2호선 시청",
+            matched_station=Station(station_name="시청", line="2호선"),
+        ),
+        "9호선 고속터미널": StationResolutionResult(
+            query="9호선 고속터미널",
+            matched_station=Station(station_name="고속터미널", line="9호선"),
+        ),
+    }
+    runner = MobilityGraphRunner(gateway, settings)
+
+    turn = await runner.start(
+        (
+            "휠체어를 사용하고 계단과 에스컬레이터는 모두 이용할 수 없어요. "
+            "장애인화장실도 꼭 필요해요. 2호선 시청역에서 9호선 고속터미널역까지 갈 수 있어?"
+        ),
+        thread_id="line-prefixed-trip",
+    )
+
+    assert turn.status == GraphTurnStatus.COMPLETED
+    assert gateway.resolve_calls == ["2호선 시청", "9호선 고속터미널"]
+    [(origin, destination, profile)] = gateway.brief_calls
+    assert (origin, destination) == ("2호선 시청", "9호선 고속터미널")
+    assert profile.need_accessible_restroom is True
+
+
+@pytest.mark.asyncio
 async def test_unknown_abilities_interrupt_before_tools_then_resume_once(
     settings: Settings,
 ) -> None:
@@ -440,3 +472,99 @@ async def test_checkpoint_version_mismatch_fails_before_resume(
         await upgraded_runner.resume("둘 다 못 써요", thread_id="versioned-thread")
 
     assert gateway.resolve_calls == []
+
+
+@pytest.mark.asyncio
+async def test_only_lines_the_user_chose_are_sent_with_the_brief(
+    settings: Settings,
+) -> None:
+    gateway = FakeMcpGateway()
+    gateway.station_results = {
+        "2호선 잠실": StationResolutionResult(
+            query="2호선 잠실",
+            matched_station=Station(station_name="잠실", line="2호선"),
+        ),
+        "수서": StationResolutionResult(
+            query="수서",
+            matched_station=Station(station_name="수서", line="3호선"),
+        ),
+    }
+    runner = MobilityGraphRunner(gateway, settings)
+
+    turn = await runner.start(
+        (
+            "휠체어를 사용하고 계단과 에스컬레이터는 모두 이용할 수 없어요. "
+            "2호선 잠실역에서 수서역까지 갈 수 있어?"
+        ),
+        thread_id="unstated-destination-line",
+    )
+
+    assert turn.status == GraphTurnStatus.COMPLETED
+    # 수서역의 3호선은 역 이름만으로 정해졌다. 사용자가 고른 호선처럼 넘기면 MCP가 수인분당선으로
+    # 닿는 경로를 버리므로 역 이름만 넘긴다.
+    [(origin, destination, _)] = gateway.brief_calls
+    assert (origin, destination) == ("2호선 잠실", "수서")
+
+
+@pytest.mark.asyncio
+async def test_elevator_only_trip_does_not_ask_about_stairs_or_escalators(
+    settings: Settings,
+) -> None:
+    gateway = FakeMcpGateway()
+    runner = MobilityGraphRunner(gateway, settings)
+
+    turn = await runner.start(
+        "유모차로 홍대입구역에서 삼성역까지 가려는데 엘리베이터만 탈 수 있어",
+        thread_id="elevator-only-trip",
+    )
+
+    assert turn.status == GraphTurnStatus.COMPLETED
+    [(_, _, profile)] = gateway.brief_calls
+    assert profile.need_elevator_only is True
+    assert profile.can_use_stairs is False
+    assert profile.can_use_escalator is False
+    # 계단·에스컬레이터는 사용자가 말한 조건이 아니라 엘리베이터만 탄다는 말에서 정한 것이라
+    # 확인한 이동 조건으로 따로 보여 주지 않는다.
+    shown = {condition.field for condition in turn.context.mobility_conditions}
+    assert "can_use_stairs" not in shown
+    assert "can_use_escalator" not in shown
+
+
+@pytest.mark.asyncio
+async def test_other_route_follow_up_reuses_the_trip_and_asks_mcp_to_compare(
+    settings: Settings,
+) -> None:
+    gateway = FakeMcpGateway()
+    runner = MobilityGraphRunner(gateway, settings)
+
+    first = await runner.start(CLEAR_TRIP, thread_id="alternative-follow-up")
+    follow_up = await runner.start("다른 경로 알려줘", thread_id="alternative-follow-up")
+
+    assert first.status == GraphTurnStatus.COMPLETED
+    # 범위 밖 질문처럼 다시 묻지 않고, 앞 질문의 역과 이동 조건으로 다른 경로를 비교해 달라고 한다.
+    assert follow_up.status == GraphTurnStatus.COMPLETED
+    assert [(origin, destination) for origin, destination, _ in gateway.brief_calls] == [
+        ("홍대입구", "삼성"),
+        ("홍대입구", "삼성"),
+    ]
+    assert gateway.brief_compare_alternatives == [False, True]
+    assert follow_up.context.intent == "trip_accessibility"
+
+
+@pytest.mark.asyncio
+async def test_alternative_route_question_with_both_stations_runs_the_trip_check(
+    settings: Settings,
+) -> None:
+    gateway = FakeMcpGateway()
+    runner = MobilityGraphRunner(gateway, settings)
+
+    turn = await runner.start(
+        (
+            "휠체어를 사용하고 계단과 에스컬레이터는 모두 이용할 수 없어요. "
+            "홍대입구역에서 삼성역까지 다른 경로 알려줘"
+        ),
+        thread_id="alternative-first-turn",
+    )
+
+    assert turn.status == GraphTurnStatus.COMPLETED
+    assert gateway.brief_compare_alternatives == [True]

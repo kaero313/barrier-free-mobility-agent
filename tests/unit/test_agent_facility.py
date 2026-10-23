@@ -194,3 +194,26 @@ async def test_numeric_line_is_normalized_for_context_and_followup_query(
     assert first.context.facility.target.label == "강남 · 2호선"
     assert gateway.answer_calls[-1].startswith("2호선 강남 ")
     assert followup.status == GraphTurnStatus.COMPLETED
+
+
+@pytest.mark.asyncio
+async def test_line_only_answer_is_attached_to_the_facility_station(
+    settings: Settings,
+) -> None:
+    clarification = facility_clarification_result().model_copy(deep=True)
+    clarification.parsed.target_station = "시청"
+    clarification.parsed.missing_fields = ["ambiguous_station"]
+    clarification.questions = ["시청역은 1호선, 2호선이 있습니다. 어느 호선 기준으로 확인할까요?"]
+    gateway = FakeMcpGateway(result=clarification)
+    runner = MobilityGraphRunner(gateway, settings)
+
+    interrupted = await runner.start("시청역 엘리베이터 지금 운행해?", thread_id="facility-line")
+    assert interrupted.status == GraphTurnStatus.INTERRUPTED
+
+    gateway.result = facility_question_result()
+    completed = await runner.continue_business_clarification("2호선", thread_id="facility-line")
+
+    assert completed.status == GraphTurnStatus.COMPLETED
+    # 호선을 역 이름 앞에 붙여야 MCP가 그 역의 호선으로 읽는다. 문장 끝에만 두면 같은 질문을
+    # 다시 받는다.
+    assert gateway.answer_calls[-1].startswith("2호선 시청 ")
