@@ -17,6 +17,7 @@ from barrier_free_mobility_agent.domain.models import (
     StationResolutionResult,
 )
 from barrier_free_mobility_agent.integrations.mcp.contract import (
+    brief_compares_alternatives,
     fingerprint_tools,
     validate_answer_question_tool,
     validate_generate_accessibility_brief_tool,
@@ -585,3 +586,14 @@ def test_degraded_health_is_distinct_from_contract_mismatch() -> None:
             expected_tool_input_max_chars=120,
             expected_auth_enabled=False,
         )
+
+
+def test_brief_alternative_comparison_is_detected_from_the_input_schema() -> None:
+    plain = generate_accessibility_brief_tool()
+    comparing = generate_accessibility_brief_tool()
+    properties = cast(dict[str, object], comparing.inputSchema["properties"])
+    properties["compare_alternatives"] = {"type": "boolean", "default": False}
+
+    # 예전 MCP에는 이 입력을 보내지 않도록, 입력 schema에 있을 때만 지원으로 본다.
+    assert brief_compares_alternatives([plain]) is False
+    assert brief_compares_alternatives([comparing]) is True

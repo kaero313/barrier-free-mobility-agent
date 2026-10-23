@@ -28,9 +28,11 @@ from barrier_free_mobility_agent.domain.errors import (
 from barrier_free_mobility_agent.domain.models import (
     AccessibilityQuestionResult,
     AccessibilityResult,
+    AlternativeRequestKind,
     ContractStatus,
     McpCapability,
     MobilityProfile,
+    QuestionIntent,
     StationResolutionResult,
 )
 from barrier_free_mobility_agent.integrations.mcp import gateway as gateway_module
@@ -243,6 +245,30 @@ async def test_facility_wrapper_uses_composite_tool_and_validates_intent(
             "answer_accessibility_question",
             {"question": "강남역 엘리베이터 상태"},
         )
+    finally:
+        await gateway.close()
+
+
+@pytest.mark.asyncio
+async def test_station_facility_alternative_is_accepted_as_a_facility_answer(
+    settings: Settings,
+) -> None:
+    alternative = facility_question_result().model_copy(deep=True)
+    alternative.intent = QuestionIntent.ALTERNATIVE_REQUEST
+    alternative.parsed.alternative_request_kind = AlternativeRequestKind.STATION_FACILITY
+    gateway = await initialized_gateway(
+        settings,
+        call_result=FakeCallResult(
+            isError=False,
+            structuredContent=alternative.model_dump(mode="json"),
+        ),
+    )
+    try:
+        result = await gateway.answer_facility_question("강남역 엘베 고장났는데 대안 있어?")
+
+        # 한 역의 다른 시설을 묻는 대안 질문은 그 역의 시설 답으로 받는다.
+        assert result.intent == QuestionIntent.FACILITY_STATUS
+        assert result.user_message == alternative.user_message
     finally:
         await gateway.close()
 
