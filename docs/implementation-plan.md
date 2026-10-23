@@ -137,7 +137,7 @@ Phase 2 checkpoint에는 원본 MCP payload, 전체 메시지 history, gateway/m
 - 동일 질문은 고정된 playbook과 제한 안에서 실행된다.
 - 모델이 임의 Tool 이름이나 무제한 Tool loop를 만들 수 없다.
 - “거기서 시청까지는?”, “환승역 화장실은?” 같은 다중 턴 fixture가 통과한다.
-- “현재 경로 말고 다른 경로”는 이전 composite 결과의 검증된 alternatives만 사용하고, 없을 때 지원 한계를 설명한다.
+- “현재 경로 말고 다른 경로”는 이전 역·이동 조건으로 `compare_alternatives=true` 경로 판단을 다시 받아, MCP가 검증한 alternatives만 답하고 없을 때 비교할 경로가 없다고 설명한다.
 - 미확인 계단·에스컬레이터 조건이 MCP 기본값으로 변환되지 않고 clarification으로 가는 테스트가 있다.
 - 최대 graph step, Tool/model call, parallelism 제한이 테스트로 강제된다.
 - 선택 모델의 structured output 준수율, 한국어 routing 정확도, p95 latency와 비용 기준이 기록된다.

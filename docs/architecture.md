@@ -331,7 +331,7 @@ structured output 준수율, tokenizer undercount, p95 latency와 건당 비용�
 | 상세 감사·회귀 평가 | `check_accessible_trip`, 외부 사용자 응답에는 canonical message 유지 |
 | 경로 판단 뒤 특정 역의 시설 세부 위치 | structured route stop 계약 전에는 역 이름 clarification |
 | 경로상 여러 시설의 보조 확인 | 후속 composite subgraph 전에는 지원 범위를 설명 |
-| “현재 경로 말고 다른 경로” | 이전 복합 결과의 검증된 `alternatives`를 우선 제시하고, 없으면 현재 계약의 한계를 설명 |
+| “현재 경로 말고 다른 경로”, “대안 경로” | 경로 판단과 같은 흐름으로 이전 역·이동 조건을 이어 쓰고 `generate_accessibility_brief(compare_alternatives=true)`를 한 번 부른다. MCP가 검증한 `alternatives`를 답하고, 없으면 비교할 경로가 없다고 밝힌다 |
 
 기본 실행 예산은 모델 호출 2회, MCP Tool 호출 6회, 병렬 호출 4개, graph step 12개다. 요청별 playbook이 더 낮은 제한을 가질 수 있다. 예산 소진은 모델에게 추가 자율성을 주는 대신 안전한 부분 응답으로 종료한다.
 
