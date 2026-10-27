@@ -132,7 +132,8 @@ web/
 ```
 
 - native HTML semantics를 우선하고 headless component는 필요한 interaction에만 사용한다.
-- `docs/design-tokens.json`을 CSS custom properties로 변환한다.
+- ~~`docs/design-tokens.json`을 CSS custom properties로 변환한다.~~ 2026-10-08
+  [ADR-0012](0012-shadcn-ui-design-system.md)에 따라 shadcn/ui 테마 token(`web/src/app/globals.css`)으로 대체했다.
 - Storybook에서 API 상태 조합과 forced-colors/reduced-motion state를 검증한다.
 - component/unit test와 별도로 Playwright + axe를 사용한 keyboard·accessibility E2E를 둔다.
 - textarea Enter는 줄바꿈이며 명시적 submit button을 기본으로 한다. shortcut을 추가하면 IME composition을 검사한다.

@@ -826,6 +826,7 @@ UI가 만들지 않는다.
 - [ADR-0008: 제품 신뢰 surface와 운영 surface 경계](adr/0008-product-trust-and-operations-surfaces.md)
 - [ADR-0009: 구조화된 clarification 공개 계약과 호환 전환](adr/0009-structured-clarification-contract.md)
 - [ADR-0010: Durable run ledger와 crash window 의미론](adr/0010-durable-run-ledger-and-crash-semantics.md)
+- [ADR-0012: shadcn/ui 기반 Web 디자인 시스템](adr/0012-shadcn-ui-design-system.md)
 - [Durable run ledger 운영 runbook](runbooks/durable-run-ledger.md)
 
 ## 18. 공식 기술 근거
