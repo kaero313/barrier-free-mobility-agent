@@ -27,15 +27,19 @@ FastAPI OpenAPI snapshot을 의도적으로 갱신한 경우에만 `npm run cont
 
 ## UI boundary
 
-- `src/theme/design-tokens.json`은 `../docs/design-tokens.json`의 build-local mirror다.
-- 공개 CSS 변수는 `src/theme/tokens.css`에 정의한다.
-- App Router root layout만 전역 CSS를 불러온다.
+- 디자인 시스템은 shadcn/ui(`base-nova` style, `slate` base color, Base UI, lucide)와 Tailwind CSS 4다.
+  결정과 기본값에서 벗어난 접근성 예외는 [ADR-0012](../docs/adr/0012-shadcn-ui-design-system.md)에 있다.
+- theme token은 `src/app/globals.css`에만 정의하고 App Router root layout만 전역 CSS를 불러온다.
+  `src/app/theme-contrast.test.ts`가 light·dark 토큰의 텍스트 4.5:1, 포커스 3:1 대비를 검사한다.
+- `src/components/ui/`는 shadcn 생성본이다. 새 component는 `npx shadcn@latest add <name>`으로 추가하고,
+  갱신할 때 44px 조작 영역·한국어 보조 문구·`SidebarInset` landmark 같은 로컬 수정이 덮이지 않았는지 확인한다.
+- 화면 공통 조합은 `src/components/`(`StatusBadge`, `Disclosure`, `PageHeader`, `ThemeToggle`)에 둔다.
 - feature는 `AppShell`이 제공하는 `main#main-content`를 중복 생성하지 않는다.
 - `openapi/agent.openapi.json`에서 생성한 `agent-openapi.generated.ts`와 strict Zod runtime
   validator를 함께 사용하고 CI에서 두 artifact의 drift를 차단한다.
-- landmark나 form 의미가 필요한 UI는 native semantic primitive를 기본으로 사용한다.
-- Astryx는 `components/primitives/astryx-adapter.tsx` 밖에서 직접 import하지 않는다.
-- Astryx `Card`는 `div`만 렌더링하므로 adapter는 비의미적 grouping에만 사용한다. 의미 있는 section에는 `Surface`를 사용한다.
+- landmark나 form 의미가 필요한 UI는 native semantic 요소를 기본으로 사용한다. shadcn `Card`·`Alert`는
+  `div`를 렌더링하므로 의미 있는 영역은 `section`·`aside`로 감싸고 제목은 `CardTitle` 안에 heading으로 둔다.
+- shadcn `Alert`는 기본이 `role="alert"`다. 즉시 조치가 필요한 오류에만 그대로 쓰고 안내 문구는 `role="note"`로 바꾼다.
 
 ## Anonymous session and BFF identity
 
@@ -59,11 +63,11 @@ openssl rand -base64 48
 ## Accessibility baseline
 
 - document language: Korean
-- body: 16px / 1.6
+- reading text: 16px, Pretendard self-hosted with `next/font/local`
 - control and pointer target: minimum 44px
-- visible keyboard focus and skip link
-- reduced-motion and forced-colors support
-- status meaning is always conveyed with visible text, not color alone
+- visible keyboard focus (solid `--ring` outline, `Highlight` in forced colors) and skip link
+- light/dark theme, reduced-motion and forced-colors support
+- status meaning is always conveyed with visible text and icon, not color alone
 
 ## Dependency security note
 

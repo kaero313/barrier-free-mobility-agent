@@ -238,16 +238,17 @@ Phase 3C-1부터 Assistant는 API 상태 조합을 유지하면서 다음 상태
 
 #### 결과 후
 
-- 12-column grid, 결과 본문 8-column과 공개 근거 4-column
+- 12-column grid, 결과 본문 8-column과 이동 조건·공개 근거 4-column
 - 결과 본문: 상태, canonical message, 구조화 presentation, 후속 action
-- 공개 근거: 확인 시각, evidence, 제한·미확인 항목과 request ID disclosure
+- 오른쪽 칸: 확인한 이동 조건 카드와 그 아래 공개 근거(확인 시각, evidence, 제한·미확인 항목과
+  request ID disclosure). 이동 조건을 결과 위 전체 폭에 두지 않아 답변이 화면 위에서 바로 시작한다
 - 운영 timeline이나 Tool 이름은 이 panel에 표시하지 않음
 
 `ResultSummary`는 DOM에 한 번만 두고 관련 Agent 응답 다음에 위치시킨다. desktop에서는 CSS
 grid로 결과와 근거를 나눠도 mobile에서는 같은 DOM 순서를 유지한다. 대화 안에 두 번째 결과를
 복제하지 않으며 필요한 경우 `확인 결과로 이동` 링크만 제공한다.
 
-최대 제품 content width는 token의 1440px를 유지하되 결과 본문의 문장 폭은
+최대 제품 content width는 1440px를 유지하되 결과 본문의 문장 폭은
 `readingMaxWidth=720px`로 제어한다. 입력창은
 viewport 아래에 고정할 수 있지만 200% 확대와 mobile reflow에서는 일반 문서 흐름으로 전환한다.
 
@@ -257,10 +258,10 @@ viewport 아래에 고정할 수 있지만 200% 확대와 mobile reflow에서는
 
 1. header와 현재 route
 2. 페이지 제목, 지원 범위와 새 조회
-3. 현재 조건 요약
+3. 현재 조건 요약(clarification 중). 결과 후에는 결과 카드 다음으로 옮긴다
 4. 대화와 clarification 또는 일반 입력창
 5. 결과 카드
-6. 근거·제한 사항 disclosure
+6. 확인한 이동 조건과 근거·제한 사항 disclosure
 7. 이어서 질문·새 이동 조회 action
 
 결과와 근거를 bottom sheet에만 가두지 않는다. sheet는 빠른 이동용 보조 view로만 사용할 수 있다.
@@ -269,47 +270,86 @@ viewport 아래에 고정할 수 있지만 200% 확대와 mobile reflow에서는
 ### 6.3 Visual language
 
 방향은 장식적인 AI chat보다 차분하고 정밀한 이동 서비스와 운영 제품에 가깝게 잡는다.
-승인된 시각 방향의 이름은 `Modern Mobility`다. 생성형 디자인 결과물은 기능·정보 구조의
+시각 언어는 조직의 다른 제품과 같은 shadcn/ui 기본 component와 기본 테마를 따른다
+([ADR-0012](adr/0012-shadcn-ui-design-system.md)). 생성형 디자인 결과물은 기능·정보 구조의
 source가 아니라 시각 참고 자료로만 사용하며, 실제 제품 계약과 접근성 기준을 우선한다.
 
-- cool neutral canvas와 white surface, deep indigo primary를 사용한다.
-- restrained teal은 이동 맥락의 보조 accent와 성공 상태에 제한적으로 사용한다.
-- 확인, 부분 확인, 실패와 미확인은 green·amber·red·slate를 사용하되 text와 icon을 항상 병기한다.
-- 한국어 본문은 빌드 시 self-host하는 `Noto Sans KR`과 system fallback, 기본 16px·line-height 1.6을 사용한다. 읽는 사람의 기기에 설치된 폰트나 외부 font host에 의존하지 않는다.
-- 대화는 짧은 발화만 message 형태로 표시하고 긴 결과는 heading이 있는 document card로 렌더링한다.
+- shadcn/ui `base-nova` style과 `slate` 기본 테마를 쓰고 커스텀 브랜드 색을 두지 않는다.
+  라이트·다크 테마는 기기 설정을 따르며 header에서 전환할 수 있다.
+- 결과 상태에만 Tailwind 기본 팔레트의 `success`(green)·`warning`(amber)·`info`(sky) 토큰과
+  기존 `destructive`를 쓴다. 상태 아이콘과 옅은 배경·테두리에만 쓰고 글자색으로 쓰지 않는다
+  ([ADR-0012](adr/0012-shadcn-ui-design-system.md)).
+- 화면은 Card, Badge, Alert, Button, Field, Sidebar 같은 기본 component를 조합해 만든다.
+- 확인, 부분 확인, 실패와 미확인은 기본 Badge variant(default·secondary·destructive·outline)로
+  구분하되 lucide icon과 완전한 문구를 항상 병기한다. 색만으로 상태를 구분하지 않는다.
+- 한국어 본문은 빌드 시 함께 배포하는 `Pretendard` 가변 폰트와 system fallback을 사용한다. 읽는 사람의 기기에 설치된 폰트나 외부 font host에 의존하지 않는다. 결과·안내 본문은 16px·line-height 1.75 안팎을 유지한다.
+- 대화는 짧은 발화만 Message·Bubble 형태로 표시하고 긴 결과는 heading이 있는 Card로 렌더링한다.
+- canonical message는 문장을 해석하지 않고 마크다운 구조로만 위계를 준다. 첫 문단(할 일 한 줄)은
+  결과의 큰 제목으로, 첫 문단 바로 다음 목록(확인됨·확인 안 됨·권장 확인 같은 라벨 항목)은 요약 상자로,
+  소제목 구역은 구분선으로 나눈다. 목록 항목이 MCP 답변 규칙의 라벨(이용 제한·확인됨·확인 안 됨·권장
+  확인)로 시작할 때만 상태 아이콘을 앞에 붙인다. 답변이 MCP 답변 규칙의 마지막 두 구역(`기준 시각`,
+  `주의사항`)으로 끝나면 두 구역을 작은 글씨의 근거 상자 하나로 묶고 소제목은 제목으로 남긴다. 표 셀은
+  위쪽에 맞추고 넓은 화면에서는 첫 열(역·시설 이름)을 한 줄로 둔다. 표는 최소 너비를 두고 좁은 화면에서는 표 영역만 가로로 스크롤한다.
 - station과 구간은 지도보다 먼저 text와 연결선으로 표현하되 구조화된 route segment가 없으면 장식용 경로를 만들지 않는다.
+  이동 조건 카드의 출발·도착은 길찾기 입력란처럼 두 점만 잇고, 환승역 같은 중간 구간은 그리지 않는다.
 - 사용자 화면은 넉넉한 spacing을 유지하고 운영 Console의 고밀도 표·timeline visual language를 가져오지 않는다.
-- 주요 card radius는 16px, control radius는 14px로 두고 shadow는 낮게 유지해 정보 hierarchy를 border와 spacing으로 먼저 만든다.
 - neon gradient, glassmorphism, typing animation, mascot과 자동 타이핑 효과를 사용하지 않는다.
 - map은 구조화된 route 계약 이후 선택적 보조 view로만 추가한다.
-- 초기에는 dark theme보다 forced-colors와 별도 high-contrast theme를 우선한다.
+- 접근성 기준선이 component 기본값보다 우선한다. 텍스트 대비, 포커스 실선, forced-colors 시스템 색
+  대응과 44px 조작 영역처럼 기본값에서 벗어나는 항목은 ADR-0012에 기록한다.
 
-구체 값은 [design-tokens.json](design-tokens.json)을 단일 기준으로 사용한다.
+구체 값은 `web/src/app/globals.css`의 theme token을 단일 기준으로 사용한다.
 
 ## 7. API 상태와 화면 상태
 
 | `run_status` | `status` | 화면 제목 | 기본 행동 |
 |---|---|---|---|
 | `interrupted` | `NEEDS_CLARIFICATION` | 추가 정보가 필요합니다 | 질문·선택지를 표시하고 같은 run을 resume |
-| `completed` | `SUCCESS` | 확인이 완료되었습니다 | canonical `user_message`와 근거 표시 |
+| `completed` | `SUCCESS` | 위험도에 따라 아래 표 | canonical `user_message`와 근거 표시 |
 | `completed` | `PARTIAL` | 일부 정보만 확인되었습니다 | 확인 정보와 미확인 항목을 같은 중요도로 표시 |
 | `completed` | `FAILED` | 현재 확인하지 못했습니다 | 결과를 확정하지 않고 새 조회 action 제공 |
 | `failed` | `FAILED` | 조회가 중단되었습니다 | 같은 run resume을 제공하지 않고 새 run 제출 |
 
 `SUCCESS`를 자동으로 `이동 가능`으로 번역하지 않는다. 화면의 주요 답변은 API의 canonical `user_message`다.
+`SUCCESS`는 조회를 끝냈다는 뜻이므로 완료 표시(체크 아이콘, "확인이 완료되었습니다")를 쓰지 않고
+`evidence.risk_level`에 맞춰 제목과 아이콘을 정한다.
 
-`completed + FAILED`도 presentation 유무를 나눈다. MCP가 구조화 결과를 반환한 업무 실패는 trip/facility presentation을 참고 정보로 표시하되 성공 판단처럼 강조하지 않는다. capability 부재 등 Agent가 직접 만든 실패는 `presentation=null`일 수 있으므로 canonical message와 복구 action만 표시한다. 두 경우 모두 technical `run_status=failed`와 다른 상태다.
+| `risk_level` | 화면 제목 | 상태 아이콘(색) |
+|---|---|---|
+| `LOW` | 확인된 범위에서 큰 위험 요소는 없습니다 | 확인(success) |
+| `CAUTION` | 출발 전에 확인할 점이 있습니다 | 주의(warning) |
+| `HIGH` | 이동에 어려움이 예상됩니다 | 위험(destructive) |
+| `UNKNOWN` | 이동 가능 여부를 판단하지 못했습니다 | 미확인(무채색) |
+| 없음(시설 질문 등) | 조회를 마쳤습니다 | 안내(info) |
+
+`completed + FAILED`도 presentation 유무를 나눈다. MCP가 시설 결과를 반환한 업무 실패는 시설 목록을 참고 정보로 표시하되 성공 판단처럼 강조하지 않는다. 경로 결과는 참고로 붙일 구조화 정보가 없으므로 trip `FAILED`에서는 참고 정보 안내와 안전 안내 상자를 그리지 않고 canonical message만 표시한다. capability 부재 등 Agent가 직접 만든 실패는 `presentation=null`일 수 있으므로 canonical message와 복구 action만 표시한다. 두 경우 모두 technical `run_status=failed`와 다른 상태다.
 
 ### 7.1 결과 정보 순서
 
-1. 업무 상태명과 canonical `user_message`
-2. safety notice와 사용자가 취할 다음 행동
-3. 구조화된 경로·시설 결과와 확인된 부분
-4. 판단에 사용된 현재 이동 조건과 provenance
-5. 위험·신뢰 수준과 공개 evidence
-6. 제한 사항, 검증하지 못한 부분과 실패한 정보 출처
-7. 마지막 확인 시각
-8. `문제 신고용 정보` 안의 request ID
+1. 업무 상태명과 canonical `user_message`. 상태명은 답변 위 상태 표시(제목 요소에 상태 아이콘과 옅은
+   상태색 배경) 한 번으로만 보여 주고, 큰 제목은 canonical message 첫 줄이 맡는다. 같은 문구의 배지를
+   반복하지 않는다.
+2. safety notice와 사용자가 취할 다음 행동. canonical message에 같은 안전 안내 문장이 이미 있으면 별도 안내 상자를 그리지 않는다.
+3. 구조화된 시설 결과와 확인된 부분. 이동 조건 카드와 겹치는 출발·도착은 반복하지 않는다. 경로 요약(`trip.route_summary`)은 출발·도착을 이동 조건 카드가, 환승 경로를 canonical message의 "환승 정보"가 이미 보여 주므로 따로 그리지 않는다. 시설 결과는 본문 아래에 둔다.
+4. `위험도`와 `자료 신뢰도`, 신뢰도 판단 이유. 위험도로 제목을 정한 `SUCCESS` 결과는 제목이 이미 위험도를 말하므로 `위험도` 줄을 생략하고, `FAILED` 결과는 판단하지 못했다는 사실을 제목이 말하므로 이 영역을 그리지 않는다. 두 값이 모두 없는 결과(시설 질문 등)에는 이 영역을 그리지 않는다.
+5. 아래 항목은 `근거와 제한 사항 자세히 보기` 안에 접어 둔다.
+   - 부분 확인 정보(본문에 같은 문장이 있으면 제외), 제한 사항, 검증하지 못한 부분(제한 사항과 같은 문장 제외)과 실패한 정보 출처
+   - 판단에 사용된 이동 조건과 provenance
+   - 확인 출처. 한 응답 안에서 같은 출처를 다시 읽은 캐시 항목은 한 번만 표시한다.
+   - 마지막 확인 시각
+   - `문제 신고용 정보` 안의 request ID
+
+   `source=mcp`인 답변은 MCP 답변 규칙에 따라 canonical message의 "기준 시각·주의사항"에 출처별
+   확인 시각과 제한 사항을 이미 담는다. 이때는 제한 사항, 확인 출처, 마지막 확인 시각을 상세에 다시
+   늘어놓지 않는다. 본문 문장을 해석하지 않고 `source` 필드로만 판단한다.
+
+현재 이동 조건 카드는 조건만 보여 준다. 거짓 값은 "계단 이용 불가"처럼 제약으로 읽히게 쓰고,
+역은 아직 확정되지 않았을 때만 `확인 전`을 붙인다. clarification 중에는 대화 위에, 결과 화면에서는
+결과 본문 다음(desktop 오른쪽 칸 위)에 둔다. page heading은 질문 전에만 안내형 문장을 쓰고
+clarification 중에는 `이동 조회`, 결과 화면에서는 `이동 조회 결과`와 그 아래 마지막 질문을 보여 준다.
+기록이 그 질문 하나뿐이면 `이전 질문과 대화` 접기를 두지 않는다. 제목 위 보조 라벨은 breadcrumb와
+겹치므로 쓰지 않고, 글자 수는 제한의 90%부터, 키보드 단축키 안내는 터치 기기가 아닐 때만 표시한다.
+막힌 버튼은 이유를 읽을 수 있도록 `aria-disabled`로 두되 흐리게 보여 준다.
 
 저장된 public event가 생기기 전에는 처리 단계 section을 추가하지 않는다. 이후에도 처리 내역은
 실제 coarse event만 결과와 한계 사이에 표시하고 Tool·graph·model 진단은 `/ops`에 둔다.

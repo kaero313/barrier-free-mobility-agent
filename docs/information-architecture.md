@@ -25,14 +25,19 @@ route를 숨기는 것만으로 보호하지 않고 BFF와 Agent API 양쪽에�
 
 ## 3. Navigation
 
-### Public header
+### Public shell
 
 ```text
-Barrier-Free Mobility | 이동 조회 | 작동 방식 | 서비스 상태
+sidebar(주요 메뉴)                      | header: 메뉴 버튼 · 현재 위치 · 테마 전환
+  Barrier-Free Mobility                 | main
+  서비스: 이동 조회 · 작동 방식 · 서비스 상태 | footer: 정보 한계 안내 · 접근성 안내
+  도움말: 접근성 안내                     |
 ```
 
+- shadcn sidebar 구조를 따른다([ADR-0012](adr/0012-shadcn-ui-design-system.md)). 768px 미만에서는
+  sidebar를 header의 메뉴 버튼으로 여는 sheet로 제공한다.
 - brand는 `/`로 이동한다.
-- `/accessibility`는 footer와 mobile 지원 메뉴에서 제공한다.
+- `/accessibility`는 sidebar 도움말 group과 footer에서 제공한다.
 - 정상 readiness를 지속적인 badge나 sidebar로 강조하지 않는다.
 - degraded·unavailable 상태가 현재 행동에 영향을 줄 때만 짧은 상태와 `/status` link를 표시한다.
 
@@ -99,7 +104,7 @@ run event, Tool execution, budget, state diff, model identity, recovery와 evalu
 
 1. skip link와 public header
 2. page heading와 지원 범위
-3. 질문 label, composer, 글자 수와 submit
+3. 질문 label, composer, 입력 안내(제한에 가까우면 글자 수)와 submit
 4. 실제 가능한 예시와 정보 한계
 5. footer와 접근성 link
 
@@ -114,13 +119,13 @@ run event, Tool execution, budget, state diff, model identity, recovery와 evalu
 
 ### 결과 후
 
-1. page heading와 새 조회
-2. 서버가 확인한 현재 이동 조건
-3. 업무 상태와 canonical message
-4. 구조화된 결과, 안전 안내와 다음 행동
+1. page heading, 답한 질문과 새 조회
+2. 업무 상태와 canonical message
+3. 구조화된 결과, 안전 안내와 다음 행동
+4. 서버가 확인한 현재 이동 조건
 5. 판단 근거와 정보 한계
 6. 이어서 질문·새 이동 조회
-7. 이전 대화와 대화 관리
+7. 이전 대화(질문 하나뿐이면 생략)와 대화 관리
 
 Desktop 2열은 이 DOM 순서를 CSS로만 배치한다. mobile, 400% 확대와 screen reader에서도 같은
 순서를 유지한다. 결과를 composer 뒤로 보내거나 동일 결과를 sidebar에 복제하지 않는다.
