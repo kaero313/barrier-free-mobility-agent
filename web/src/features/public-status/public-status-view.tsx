@@ -1,10 +1,21 @@
 "use client";
 
-import { StatusBadge } from "@/components/primitives/status-badge";
-import type { PublicServiceStatus } from "@/contracts/public-status";
-import type { StatusTone } from "@/theme/tokens";
+import { RefreshCwIcon, RouteIcon } from "lucide-react";
+import Link from "next/link";
 
-import styles from "./public-status.module.css";
+import { StatusBadge, type StatusTone } from "@/components/status-badge";
+import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
+import type { PublicServiceStatus } from "@/contracts/public-status";
+
 import { usePublicStatus } from "./use-public-status";
 
 const OVERALL_STATUS: Record<
@@ -48,43 +59,34 @@ function CheckedAt({ value }: Readonly<{ value: string | null }>) {
   return <time dateTime={value}>{DATE_TIME_FORMATTER.format(new Date(value))}</time>;
 }
 
-function StatusRows({ status }: Readonly<{ status: PublicServiceStatus }>) {
+function StatusGroup({
+  id,
+  rows,
+  title,
+}: Readonly<{
+  id: string;
+  rows: ReadonlyArray<Readonly<{ id: string; label: string; status: { label: string; tone: StatusTone } }>>;
+  title: string;
+}>) {
   return (
-    <div className={styles.statusColumns}>
-      <section aria-labelledby="service-status-heading" className={styles.statusGroup}>
-        <h3 id="service-status-heading">연결 상태</h3>
-        <dl className={styles.statusList}>
-          {status.services.map((service) => {
-            const presentation = SERVICE_STATUS[service.status];
-            return (
-              <div className={styles.statusRow} key={service.id}>
-                <dt>{service.label}</dt>
-                <dd>
-                  <StatusBadge tone={presentation.tone}>{presentation.label}</StatusBadge>
-                </dd>
-              </div>
-            );
-          })}
-        </dl>
-      </section>
-
-      <section aria-labelledby="feature-status-heading" className={styles.statusGroup}>
-        <h3 id="feature-status-heading">지원 범위</h3>
-        <dl className={styles.statusList}>
-          {status.features.map((feature) => {
-            const presentation = FEATURE_STATUS[feature.status];
-            return (
-              <div className={styles.statusRow} key={feature.id}>
-                <dt>{feature.label}</dt>
-                <dd>
-                  <StatusBadge tone={presentation.tone}>{presentation.label}</StatusBadge>
-                </dd>
-              </div>
-            );
-          })}
-        </dl>
-      </section>
-    </div>
+    <section aria-labelledby={id} className="flex min-w-0 flex-col gap-2">
+      <h3 id={id} className="text-sm font-semibold">
+        {title}
+      </h3>
+      <dl className="divide-y rounded-lg border">
+        {rows.map((row) => (
+          <div
+            className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-3 py-3"
+            key={row.id}
+          >
+            <dt className="text-sm">{row.label}</dt>
+            <dd>
+              <StatusBadge tone={row.status.tone}>{row.status.label}</StatusBadge>
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </section>
   );
 }
 
@@ -103,52 +105,94 @@ export function PublicStatusView() {
     <section
       aria-busy={state.kind === "checking"}
       aria-labelledby="current-service-status"
-      className={styles.statusPanel}
       data-state={state.kind}
       data-ui="public-status"
     >
-      <p aria-atomic="true" aria-live="polite" className="visually-hidden">
+      <p aria-atomic="true" aria-live="polite" className="sr-only">
         {announcement}
       </p>
 
-      <div className={styles.statusHeader}>
-        <div>
-          <p className="eyebrow">현재 이용 상태</p>
-          <h2 id="current-service-status">이동 조회 상태</h2>
-        </div>
-        {overall === null ? null : <StatusBadge tone={overall.tone}>{overall.label}</StatusBadge>}
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            <h2 id="current-service-status" className="text-lg font-semibold">
+              이동 조회 상태
+            </h2>
+          </CardTitle>
+          {overall === null ? null : (
+            <CardAction>
+              <StatusBadge tone={overall.tone}>{overall.label}</StatusBadge>
+            </CardAction>
+          )}
+        </CardHeader>
 
-      {state.kind === "checking" ? (
-        <div className={styles.stateMessage}>
-          <StatusBadge tone="info">확인 중</StatusBadge>
-          <p>지금 이동 조회를 시작할 수 있는지 확인하고 있습니다.</p>
-        </div>
-      ) : null}
+        <CardContent className="flex flex-col gap-6">
+          {state.kind === "checking" ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <StatusBadge tone="info">확인 중</StatusBadge>
+              <p className="text-muted-foreground">지금 이동 조회를 시작할 수 있는지 확인하고 있습니다.</p>
+            </div>
+          ) : null}
 
-      {state.kind === "unavailable" ? (
-        <div className={styles.stateMessage}>
-          <StatusBadge tone="unknown">상태 미확인</StatusBadge>
-          <p>상태 조회에 실패했습니다. 이전 결과를 현재 상태로 추정하지 않습니다.</p>
-        </div>
-      ) : null}
+          {state.kind === "unavailable" ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <StatusBadge tone="unknown">상태 미확인</StatusBadge>
+              <p className="text-muted-foreground">
+                상태 조회에 실패했습니다. 이전 결과를 현재 상태로 추정하지 않습니다.
+              </p>
+            </div>
+          ) : null}
 
-      {loaded === null ? null : (
-        <>
-          <p className={styles.statusMessage}>{loaded.message}</p>
-          <StatusRows status={loaded} />
-          <p className={styles.checkedAt}>
-            <strong>마지막 확인:</strong> <CheckedAt value={loaded.checked_at} />
-          </p>
-        </>
-      )}
+          {loaded === null ? null : (
+            <>
+              <p className="text-base">{loaded.message}</p>
+              <div className="grid gap-6 md:grid-cols-2">
+                <StatusGroup
+                  id="service-status-heading"
+                  title="연결 상태"
+                  rows={loaded.services.map((service) => ({
+                    id: service.id,
+                    label: service.label,
+                    status: SERVICE_STATUS[service.status],
+                  }))}
+                />
+                <StatusGroup
+                  id="feature-status-heading"
+                  title="지원 범위"
+                  rows={loaded.features.map((feature) => ({
+                    id: feature.id,
+                    label: feature.label,
+                    status: FEATURE_STATUS[feature.status],
+                  }))}
+                />
+              </div>
+              <p className="text-sm text-muted-foreground">
+                <strong className="font-medium text-foreground">마지막 확인:</strong>{" "}
+                <CheckedAt value={loaded.checked_at} />
+              </p>
+            </>
+          )}
+        </CardContent>
 
-      <div className={styles.actions}>
-        <button disabled={state.kind === "checking"} onClick={refresh} type="button">
-          {state.kind === "checking" ? "확인 중…" : "상태 새로 확인"}
-        </button>
-        <a href="/assistant">이동 조회 화면으로 이동</a>
-      </div>
+        <CardFooter className="flex-wrap gap-2">
+          <Button
+            variant="outline"
+            disabled={state.kind === "checking"}
+            onClick={refresh}
+          >
+            {state.kind === "checking" ? (
+              <Spinner data-icon="inline-start" aria-hidden="true" />
+            ) : (
+              <RefreshCwIcon data-icon="inline-start" aria-hidden="true" />
+            )}
+            {state.kind === "checking" ? "확인 중…" : "상태 새로 확인"}
+          </Button>
+          <Link className={buttonVariants({ variant: "ghost" })} href="/assistant">
+            <RouteIcon data-icon="inline-start" aria-hidden="true" />
+            이동 조회 화면으로 이동
+          </Link>
+        </CardFooter>
+      </Card>
     </section>
   );
 }
