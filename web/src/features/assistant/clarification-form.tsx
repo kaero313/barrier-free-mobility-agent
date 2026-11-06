@@ -10,13 +10,19 @@ import {
   type KeyboardEvent,
 } from "react";
 
+import { ArrowRightIcon, CircleAlertIcon } from "lucide-react";
+
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Field, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
+import { Spinner } from "@/components/ui/spinner";
+import { Textarea } from "@/components/ui/textarea";
 import type {
   AgentValidationIssue,
   ClarificationView,
   StructuredClarificationAnswer,
 } from "@/contracts/agent";
-
-import styles from "./assistant-workspace.module.css";
 
 const SINGLE_TEXT_KEY = "single-text";
 
@@ -68,6 +74,16 @@ function issueProjection(
   }
 
   return { fieldErrors, generalErrors: Array.from(new Set(generalErrors)) };
+}
+
+// 글자 수는 제한에 가까워졌을 때만 보여 준다. 그 전에는 maxLength 가 넘치지 않게 막는다.
+function CharacterCount({ length, max }: { length: number; max: number }) {
+  if (length < max * 0.9) return null;
+  return (
+    <p className="text-right text-xs text-muted-foreground">
+      {length.toLocaleString("ko-KR")} / {max.toLocaleString("ko-KR")}자
+    </p>
+  );
 }
 
 function composingEnter(event: KeyboardEvent<HTMLTextAreaElement>): boolean {
@@ -228,160 +244,197 @@ export function ClarificationForm({
   }
 
   return (
-    <section className={styles.clarificationCard} aria-labelledby={`${baseId}-title`}>
-      <p className={styles.eyebrow}>확인을 위한 추가 질문</p>
-      <h2 id={`${baseId}-title`} ref={headingRef} tabIndex={-1}>
-        추가 정보가 필요합니다
-      </h2>
-      <div className={styles.promptList}>
-        {clarification.prompts.map((prompt) => (
-          <p id={promptDomIds.get(prompt.id)} key={prompt.id}>
-            {prompt.question}
-          </p>
-        ))}
-      </div>
-      <form onSubmit={handleSubmit} aria-busy={busy} noValidate>
-        {clarification.answer_request.mode === "single_text" ? (
-          <div className={styles.freeTextGroup}>
-            <label htmlFor={`${baseId}-single-text`}>
-              {clarification.answer_request.label}
-            </label>
-            <textarea
-              ref={(element) => {
-                if (element !== null) controlRefs.current.set(SINGLE_TEXT_KEY, element);
-              }}
-              id={`${baseId}-single-text`}
-              value={singleText}
-              minLength={clarification.answer_request.min_length}
-              maxLength={clarification.answer_request.max_length}
-              rows={4}
-              disabled={busy}
-              aria-invalid={errors[SINGLE_TEXT_KEY] === undefined ? undefined : true}
-              aria-describedby={describedBy(null, SINGLE_TEXT_KEY)}
-              onKeyDown={(event) => {
-                if (composingEnter(event)) event.preventDefault();
-              }}
-              onChange={(event) => {
-                setSingleText(event.target.value);
-                clearInputError(SINGLE_TEXT_KEY);
-              }}
-            />
-            <small>
-              {singleText.length.toLocaleString("ko-KR")} /{" "}
-              {clarification.answer_request.max_length.toLocaleString("ko-KR")}자
-            </small>
-            {errors[SINGLE_TEXT_KEY] ? (
-              <p id={errorId(SINGLE_TEXT_KEY)} className={styles.inlineError}>
-                {errors[SINGLE_TEXT_KEY]}
+    <section aria-labelledby={`${baseId}-title`}>
+      <Card className="gap-5">
+        <CardHeader>
+          <CardTitle>
+            <h2
+              id={`${baseId}-title`}
+              ref={headingRef}
+              tabIndex={-1}
+              className="text-lg font-semibold tracking-tight"
+            >
+              추가 정보가 필요합니다
+            </h2>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-5">
+          <div className="flex flex-col gap-1 rounded-lg bg-muted/50 px-4 py-3 text-base leading-7">
+            {clarification.prompts.map((prompt) => (
+              <p id={promptDomIds.get(prompt.id)} key={prompt.id}>
+                {prompt.question}
               </p>
-            ) : null}
+            ))}
           </div>
-        ) : (
-          <div className={styles.structuredFields}>
-            {clarification.answer_request.inputs.map((input) => {
-              const promptId = promptDomIds.has(input.prompt_id) ? input.prompt_id : null;
-              if (input.control === "text") {
-                return (
-                  <div key={input.id} className={styles.structuredTextField}>
-                    <label htmlFor={`${baseId}-${input.id}`}>{input.label}</label>
-                    <textarea
-                      ref={(element) => {
-                        if (element !== null) controlRefs.current.set(input.id, element);
-                      }}
-                      id={`${baseId}-${input.id}`}
-                      value={fieldValues[input.id] ?? ""}
-                      minLength={input.min_length}
-                      maxLength={input.max_length}
-                      rows={2}
+          <form className="flex flex-col gap-5" onSubmit={handleSubmit} aria-busy={busy} noValidate>
+            {clarification.answer_request.mode === "single_text" ? (
+              <Field data-invalid={errors[SINGLE_TEXT_KEY] === undefined ? undefined : true}>
+                <FieldLabel htmlFor={`${baseId}-single-text`} className="text-base">
+                  {clarification.answer_request.label}
+                </FieldLabel>
+                <Textarea
+                  ref={(element) => {
+                    if (element !== null) controlRefs.current.set(SINGLE_TEXT_KEY, element);
+                  }}
+                  id={`${baseId}-single-text`}
+                  className="min-h-28 text-base md:text-base"
+                  value={singleText}
+                  minLength={clarification.answer_request.min_length}
+                  maxLength={clarification.answer_request.max_length}
+                  rows={4}
+                  disabled={busy}
+                  aria-invalid={errors[SINGLE_TEXT_KEY] === undefined ? undefined : true}
+                  aria-describedby={describedBy(null, SINGLE_TEXT_KEY)}
+                  onKeyDown={(event) => {
+                    if (composingEnter(event)) event.preventDefault();
+                  }}
+                  onChange={(event) => {
+                    setSingleText(event.target.value);
+                    clearInputError(SINGLE_TEXT_KEY);
+                  }}
+                />
+                <CharacterCount
+                  length={singleText.length}
+                  max={clarification.answer_request.max_length}
+                />
+                {errors[SINGLE_TEXT_KEY] ? (
+                  <p id={errorId(SINGLE_TEXT_KEY)} className="text-sm text-destructive">
+                    {errors[SINGLE_TEXT_KEY]}
+                  </p>
+                ) : null}
+              </Field>
+            ) : (
+              <div className="flex flex-col gap-5">
+                {clarification.answer_request.inputs.map((input) => {
+                  const promptId = promptDomIds.has(input.prompt_id) ? input.prompt_id : null;
+                  if (input.control === "text") {
+                    return (
+                      <Field
+                        key={input.id}
+                        data-invalid={errors[input.id] === undefined ? undefined : true}
+                      >
+                        <FieldLabel htmlFor={`${baseId}-${input.id}`} className="text-base">
+                          {input.label}
+                        </FieldLabel>
+                        <Textarea
+                          ref={(element) => {
+                            if (element !== null) controlRefs.current.set(input.id, element);
+                          }}
+                          id={`${baseId}-${input.id}`}
+                          className="text-base md:text-base"
+                          value={fieldValues[input.id] ?? ""}
+                          minLength={input.min_length}
+                          maxLength={input.max_length}
+                          rows={2}
+                          disabled={busy}
+                          aria-invalid={errors[input.id] === undefined ? undefined : true}
+                          aria-describedby={describedBy(promptId, input.id)}
+                          onKeyDown={(event) => {
+                            if (composingEnter(event)) event.preventDefault();
+                          }}
+                          onChange={(event) => {
+                            setFieldValues((current) => ({
+                              ...current,
+                              [input.id]: event.target.value,
+                            }));
+                            clearInputError(input.id);
+                          }}
+                        />
+                        <CharacterCount
+                          length={(fieldValues[input.id] ?? "").length}
+                          max={input.max_length}
+                        />
+                        {errors[input.id] ? (
+                          <p id={errorId(input.id)} className="text-sm text-destructive">
+                            {errors[input.id]}
+                          </p>
+                        ) : null}
+                      </Field>
+                    );
+                  }
+
+                  return (
+                    // 선택지는 서버가 준 option 그대로 native radio 로 그린다. 기본 선택은 두지 않는다.
+                    <FieldSet
+                      key={input.id}
+                      className="min-w-0 gap-3"
                       disabled={busy}
                       aria-invalid={errors[input.id] === undefined ? undefined : true}
                       aria-describedby={describedBy(promptId, input.id)}
-                      onKeyDown={(event) => {
-                        if (composingEnter(event)) event.preventDefault();
-                      }}
-                      onChange={(event) => {
-                        setFieldValues((current) => ({
-                          ...current,
-                          [input.id]: event.target.value,
-                        }));
-                        clearInputError(input.id);
-                      }}
-                    />
-                    <small>
-                      {(fieldValues[input.id] ?? "").length.toLocaleString("ko-KR")} /{" "}
-                      {input.max_length.toLocaleString("ko-KR")}자
-                    </small>
-                    {errors[input.id] ? (
-                      <p id={errorId(input.id)} className={styles.inlineError}>
-                        {errors[input.id]}
-                      </p>
-                    ) : null}
-                  </div>
-                );
-              }
-
-              return (
-                <fieldset
-                  key={input.id}
-                  className={styles.choiceGroup}
-                  disabled={busy}
-                  aria-invalid={errors[input.id] === undefined ? undefined : true}
-                  aria-describedby={describedBy(promptId, input.id)}
-                >
-                  <legend>{input.label}</legend>
-                  {input.options.map((option, optionIndex) => (
-                    <label key={option.value} className={styles.choiceOption}>
-                      <input
-                        ref={(element) => {
-                          if (element !== null && optionIndex === 0) {
-                            controlRefs.current.set(input.id, element);
-                          }
-                        }}
-                        type="radio"
-                        name={`${baseId}-${input.id}`}
-                        value={option.value}
-                        checked={(fieldValues[input.id] ?? "") === option.value}
-                        onChange={(event) => {
-                          setFieldValues((current) => ({
-                            ...current,
-                            [input.id]: event.target.value,
-                          }));
-                          clearInputError(input.id);
-                        }}
-                      />
-                      <span>{option.label}</span>
-                    </label>
-                  ))}
-                  {errors[input.id] ? (
-                    <p id={errorId(input.id)} className={styles.inlineError}>
-                      {errors[input.id]}
-                    </p>
-                  ) : null}
-                </fieldset>
-              );
-            })}
-          </div>
-        )}
-        {errorEntries.length > 0 || projectedIssues.generalErrors.length > 0 ? (
-          <div className={styles.validationSummary} role="alert">
-            <p>입력 내용을 확인해 주세요.</p>
-            {errorEntries.map(([key, message]) => (
-              <p key={key}>{message}</p>
-            ))}
-            {projectedIssues.generalErrors.map((message) => (
-              <p key={message}>{message}</p>
-            ))}
-          </div>
-        ) : null}
-        <button
-          type="submit"
-          className={styles.primaryButton}
-          disabled={busy}
-          aria-disabled={busy}
-        >
-          {busy ? "확인 중…" : "입력한 정보로 계속"}
-        </button>
-      </form>
+                    >
+                      <FieldLegend className="mb-0">{input.label}</FieldLegend>
+                      <div className="grid gap-2 sm:grid-cols-[repeat(auto-fit,minmax(10rem,1fr))]">
+                        {input.options.map((option, optionIndex) => (
+                          <label
+                            key={option.value}
+                            className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-base transition-colors hover:bg-muted/50 has-checked:border-primary has-checked:bg-primary/5 has-disabled:cursor-not-allowed has-disabled:opacity-50 dark:has-checked:bg-primary/15"
+                          >
+                            <input
+                              ref={(element) => {
+                                if (element !== null && optionIndex === 0) {
+                                  controlRefs.current.set(input.id, element);
+                                }
+                              }}
+                              className="size-4 shrink-0 accent-primary"
+                              type="radio"
+                              name={`${baseId}-${input.id}`}
+                              value={option.value}
+                              checked={(fieldValues[input.id] ?? "") === option.value}
+                              onChange={(event) => {
+                                setFieldValues((current) => ({
+                                  ...current,
+                                  [input.id]: event.target.value,
+                                }));
+                                clearInputError(input.id);
+                              }}
+                            />
+                            <span>{option.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                      {errors[input.id] ? (
+                        <p id={errorId(input.id)} className="text-sm text-destructive">
+                          {errors[input.id]}
+                        </p>
+                      ) : null}
+                    </FieldSet>
+                  );
+                })}
+              </div>
+            )}
+            {errorEntries.length > 0 || projectedIssues.generalErrors.length > 0 ? (
+              <Alert variant="destructive" role="alert">
+                <CircleAlertIcon aria-hidden="true" />
+                <AlertTitle>입력 내용을 확인해 주세요.</AlertTitle>
+                <AlertDescription>
+                  <ul className="flex flex-col gap-1">
+                    {errorEntries.map(([key, message]) => (
+                      <li key={key}>{message}</li>
+                    ))}
+                    {projectedIssues.generalErrors.map((message) => (
+                      <li key={message}>{message}</li>
+                    ))}
+                  </ul>
+                </AlertDescription>
+              </Alert>
+            ) : null}
+            <Button
+              type="submit"
+              size="lg"
+              className="w-full sm:w-auto sm:self-start"
+              disabled={busy}
+              aria-disabled={busy}
+            >
+              {busy ? (
+                <Spinner data-icon="inline-start" aria-hidden="true" />
+              ) : (
+                <ArrowRightIcon data-icon="inline-start" aria-hidden="true" />
+              )}
+              {busy ? "확인 중…" : "입력한 정보로 계속"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </section>
   );
 }
