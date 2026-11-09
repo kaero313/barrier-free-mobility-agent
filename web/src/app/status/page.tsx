@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 
+import { PageHeader } from "@/components/page-header";
 import { AppShell } from "@/components/shell/app-shell";
 import { PublicStatusView } from "@/features/public-status";
-
-import styles from "../public-page.module.css";
 
 export const metadata: Metadata = {
   title: "서비스 상태",
@@ -13,14 +12,11 @@ export const metadata: Metadata = {
 export default function StatusPage() {
   return (
     <AppShell currentPath="/status">
-      <div className={styles.page}>
-        <header className={styles.pageHeader}>
-          <p className="eyebrow">서비스 상태</p>
-          <h1>서비스 상태</h1>
-          <p className={styles.pageHeaderText}>
-            지금 이동 조회를 시작할 수 있는지와 현재 지원하는 질문 범위를 확인합니다.
-          </p>
-        </header>
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
+        <PageHeader
+          title="서비스 상태"
+          description="지금 이동 조회를 시작할 수 있는지와 현재 지원하는 질문 범위를 확인합니다."
+        />
         <PublicStatusView />
       </div>
     </AppShell>
