@@ -323,6 +323,37 @@ describe("AssistantWorkspace", () => {
     });
   });
 
+  it("does not repeat a reply that only restates the clarification question", async () => {
+    const question = CLARIFICATION_RUN.clarification!.prompts[0]!.question;
+    mockedStartRun.mockResolvedValue({ ...CLARIFICATION_RUN, user_message: question });
+    render(<AssistantWorkspace />);
+
+    await submitInitialQuestion("시청역에서 강남역까지 갈 수 있나요?");
+    await screen.findByRole("heading", { name: "추가 정보가 필요합니다" }, ASYNC_UI_TIMEOUT);
+
+    // 추가 질문 상자가 같은 문장을 보여 주므로 응답 말풍선은 생략한다.
+    expect(screen.getAllByText(question)).toHaveLength(1);
+    expect(screen.queryByText("조회 응답")).not.toBeInTheDocument();
+  });
+
+  it("keeps only the reason when a reply repeats the clarification question", async () => {
+    const question = CLARIFICATION_RUN.clarification!.prompts[0]!.question;
+    const reason = "환승역은 호선별 시설 위치가 달라 호선 확인이 필요합니다.";
+    mockedStartRun.mockResolvedValue({
+      ...CLARIFICATION_RUN,
+      user_message: `${question}\n${reason}`,
+    });
+    render(<AssistantWorkspace />);
+
+    await submitInitialQuestion("시청역 엘리베이터 지금 운행해?");
+    await screen.findByRole("heading", { name: "추가 정보가 필요합니다" }, ASYNC_UI_TIMEOUT);
+
+    // 질문은 추가 질문 상자가 보여 주므로 응답 말풍선에는 이유만 남긴다.
+    expect(screen.getAllByText(question)).toHaveLength(1);
+    expect(screen.getByText("조회 응답")).toBeInTheDocument();
+    expect(screen.getByText(reason)).toBeInTheDocument();
+  });
+
   it("validates and submits a free-text clarification with its clarification id", async () => {
     mockedStartRun.mockResolvedValue(FREE_TEXT_CLARIFICATION_RUN);
     render(<AssistantWorkspace />);
@@ -568,7 +599,7 @@ describe("AssistantWorkspace", () => {
     const user = await submitInitialQuestion("휠체어로 시청역에서 강남역까지 갈 수 있나요?");
     await screen.findByRole(
       "heading",
-      { name: "확인이 완료되었습니다" },
+      { name: "출발 전에 확인할 점이 있습니다" },
       ASYNC_UI_TIMEOUT,
     );
 
@@ -594,6 +625,19 @@ describe("AssistantWorkspace", () => {
     await waitFor(() => expect(pageHeading).toHaveFocus(), ASYNC_UI_TIMEOUT);
     expect(getWorkspace("empty")).toBeInTheDocument();
     expect(document.querySelector('[data-ui="result-summary"]')).not.toBeInTheDocument();
+  });
+
+  it("shows the answered question under the result heading without a one-item history", async () => {
+    render(<AssistantWorkspace />);
+
+    await submitInitialQuestion("휠체어로 시청역에서 강남역까지 갈 수 있나요?");
+    await screen.findByRole("heading", { name: "출발 전에 확인할 점이 있습니다" }, ASYNC_UI_TIMEOUT);
+
+    expect(screen.getByRole("heading", { level: 1, name: "이동 조회 결과" })).toBeInTheDocument();
+    expect(screen.getByText("“휠체어로 시청역에서 강남역까지 갈 수 있나요?”")).toHaveTextContent(
+      "질문: “휠체어로 시청역에서 강남역까지 갈 수 있나요?”",
+    );
+    expect(screen.queryByText("이전 질문과 대화")).not.toBeInTheDocument();
   });
 
   it("does not submit Ctrl+Enter while a Korean IME composition is active", async () => {

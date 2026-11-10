@@ -1,15 +1,35 @@
 "use client";
 
 import {
+  CheckIcon,
+  CircleAlertIcon,
+  CircleCheckIcon,
+  InfoIcon,
+  LockIcon,
+  RefreshCwIcon,
+  RotateCcwIcon,
+  SendIcon,
+} from "lucide-react";
+import {
   useEffect,
   useMemo,
   useRef,
   useState,
+  type ComponentProps,
   type FormEvent,
   type KeyboardEvent,
 } from "react";
 
-import { AstryxPanel } from "@/components/primitives/astryx-adapter";
+import { Disclosure } from "@/components/disclosure";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Bubble, BubbleContent } from "@/components/ui/bubble";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Message, MessageContent, MessageHeader } from "@/components/ui/message";
+import { Spinner } from "@/components/ui/spinner";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import type {
   AgentValidationIssue,
   ConversationRunResponse,
@@ -30,7 +50,6 @@ import { CanonicalMarkdown } from "./canonical-markdown";
 import { ClarificationForm, type ClarificationAnswer } from "./clarification-form";
 import { ConversationContextSummary } from "./conversation-context-summary";
 import { ResultSummary } from "./result-summary";
-import styles from "./assistant-workspace.module.css";
 
 type Availability =
   | "checking"
@@ -90,6 +109,28 @@ const availabilityCopy: Record<Availability, { title: string; detail: string; to
     tone: "danger",
   },
 };
+
+// 질문 전·추가 질문 중에는 읽기 폭을 좁히고, 결과에서는 본문과 근거를 나란히 두도록 넓힌다.
+const WORKSPACE_WIDTH = {
+  empty: "max-w-[55rem]",
+  clarifying: "max-w-[60rem]",
+  result: "max-w-none",
+} as const;
+
+const PAGE_TITLE = {
+  empty: "이동 가능한 경로를 확인해 보세요",
+  clarifying: "이동 조회",
+  result: "이동 조회 결과",
+} as const;
+
+// 글자 수는 제한에 가까워졌을 때만 보여 준다. 그 전에는 maxLength 가 넘치지 않게 막는다.
+const COUNT_VISIBLE_RATIO = 0.9;
+
+const SCOPE_ITEMS = [
+  "출발역과 도착역 사이의 이동 경로 접근성을 확인합니다.",
+  "휠체어·유모차와 계단·에스컬레이터 이용 조건을 반영합니다.",
+  "확인되지 않은 정보는 이동 가능하다고 추정하지 않습니다.",
+] as const;
 
 const QUESTION_MAX_CHARS = 2_000;
 const RUN_RECONCILIATION_ATTEMPTS = 4;
@@ -207,6 +248,19 @@ export function AssistantWorkspace() {
   const latestAssistantEventId = assistantEvents.at(-1)?.id ?? null;
   const activeClarification =
     latestRun?.run_status === "interrupted" ? latestRun.clarification : null;
+  // 서버가 되묻는 문장을 응답에도 담으면 아래 추가 질문 상자가 같은 문장을 보여 준다.
+  // 그 줄은 응답 말풍선에서 빼고, 이유처럼 상자에 없는 줄만 남긴다. 남는 줄이 없으면 말풍선을 생략한다.
+  const clarificationReply =
+    activeClarification !== null && latestRun !== null
+      ? latestRun.user_message
+          .split("\n")
+          .filter(
+            (line) =>
+              !activeClarification.prompts.some((prompt) => prompt.question.trim() === line.trim()),
+          )
+          .join("\n")
+          .trim()
+      : "";
   const serviceReady =
     availability === "ready_trip_only" || availability === "ready_trip_and_facility";
   const facilityReady = availability === "ready_trip_and_facility";
@@ -559,12 +613,15 @@ export function AssistantWorkspace() {
     availability === "fetch_error";
   const canStartNewLookup =
     threadId !== null || events.length > 0 || unknownSubmission !== null;
-  const pageDescription =
-    workspaceState === "clarifying"
-      ? "확인한 조건을 바탕으로 필요한 정보만 이어서 질문합니다."
-      : workspaceState === "result"
-        ? "확인 결과와 정보 한계를 함께 살펴보고 이어서 질문할 수 있습니다."
-        : "출발지, 목적지와 이동 조건을 자연어로 알려주세요.";
+  const pageTitle = PAGE_TITLE[workspaceState];
+  const latestQuestion =
+    events
+      .filter(
+        (event): event is Extract<TranscriptEvent, { role: "user" }> =>
+          event.role === "user" && event.label === "질문",
+      )
+      .at(-1)?.text ?? null;
+  const showCount = draft.length >= QUESTION_MAX_CHARS * COUNT_VISIBLE_RATIO;
 
   function renderTranscript(collapsed: boolean) {
     const transcriptItems = events.filter(
@@ -577,20 +634,27 @@ export function AssistantWorkspace() {
     }
 
     const transcript = (
-      <ol className={styles.transcript} aria-label="대화 기록">
+      <ol className="flex flex-col gap-4" aria-label="대화 기록">
         {transcriptItems.map((transcriptEvent) => {
           if (transcriptEvent.role === "user") {
             return (
-              <li key={transcriptEvent.id} className={styles.userTurn}>
-                <span>{transcriptEvent.label}</span>
-                <p>{transcriptEvent.text}</p>
+              <li key={transcriptEvent.id}>
+                <Message align="end">
+                  <MessageContent>
+                    <MessageHeader className="justify-end">{transcriptEvent.label}</MessageHeader>
+                    <Bubble variant="secondary" align="end">
+                      <BubbleContent className="px-4 py-2.5 text-base whitespace-pre-wrap">
+                        {transcriptEvent.text}
+                      </BubbleContent>
+                    </Bubble>
+                  </MessageContent>
+                </Message>
               </li>
             );
           }
           return (
-            <li key={transcriptEvent.id} className={styles.agentTurn}>
-              <span>조회 응답</span>
-              <CanonicalMarkdown compact message={transcriptEvent.run.user_message} />
+            <li key={transcriptEvent.id}>
+              <AgentMessage label="조회 응답" message={transcriptEvent.run.user_message} />
             </li>
           );
         })}
@@ -598,248 +662,295 @@ export function AssistantWorkspace() {
     );
 
     if (collapsed) {
+      if (transcriptItems.length === 1 && transcriptItems[0]?.role === "user") {
+        return null;
+      }
       return (
-        <details className={styles.historyDisclosure}>
-          <summary>이전 질문과 대화</summary>
+        <Disclosure summary="이전 질문과 대화" contentClassName="py-4">
           {transcript}
-        </details>
+        </Disclosure>
       );
     }
 
-    return (
-      <section className={styles.conversationHistory} aria-labelledby="conversation-history-title">
-        <h2 id="conversation-history-title">지금까지 나눈 내용</h2>
-        {transcript}
-      </section>
-    );
+    return transcript;
   }
 
   function renderComposer(mode: "initial" | "followup") {
     const isFollowup = mode === "followup";
+    const blocked = busy || !serviceReady || unknownSubmission !== null;
     return (
       <form
-        className={`${styles.composer} ${isFollowup ? styles.followupComposer : ""}`}
+        className="flex flex-col gap-3"
         onSubmit={handleQuestionSubmit}
         aria-busy={busy}
         noValidate
       >
-        <label htmlFor="assistant-question">
-          {isFollowup ? "후속 질문" : "이동 질문"}
-        </label>
-        <textarea
-          ref={composerRef}
-          id="assistant-question"
-          value={draft}
-          rows={isFollowup ? 3 : 5}
-          maxLength={QUESTION_MAX_CHARS}
-          placeholder={
-            isFollowup
-              ? "예: 계단을 이용할 수 없다면 다른 경로가 있나요?"
-              : "예: 휠체어를 이용해 시청역에서 강남역까지 이동할 수 있을까요?"
-          }
-          readOnly={busy || unknownSubmission !== null}
-          aria-describedby="composer-help composer-count"
-          onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={handleComposerKeyDown}
-        />
-        <div className={styles.composerFooter}>
-          <div className={styles.composerMeta}>
-            <p id="composer-count">
-              {draft.length.toLocaleString("ko-KR")} /{" "}
-              {QUESTION_MAX_CHARS.toLocaleString("ko-KR")}자
-            </p>
-            <p id="composer-help">
+        <Field>
+          <FieldLabel htmlFor="assistant-question" className="text-base">
+            {isFollowup ? "후속 질문" : "이동 질문"}
+          </FieldLabel>
+          <Textarea
+            ref={composerRef}
+            id="assistant-question"
+            className={cn(
+              "text-base read-only:bg-muted/50 md:text-base",
+              isFollowup ? "min-h-20" : "min-h-32",
+            )}
+            value={draft}
+            rows={isFollowup ? 3 : 5}
+            maxLength={QUESTION_MAX_CHARS}
+            placeholder={
+              isFollowup
+                ? "예: 계단을 이용할 수 없다면 다른 경로가 있나요?"
+                : "예: 휠체어를 이용해 시청역에서 강남역까지 이동할 수 있을까요?"
+            }
+            readOnly={busy || unknownSubmission !== null}
+            aria-describedby={showCount ? "composer-help composer-count" : "composer-help"}
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={handleComposerKeyDown}
+          />
+        </Field>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-0.5 text-sm text-muted-foreground">
+            {showCount ? (
+              <p id="composer-count">
+                {draft.length.toLocaleString("ko-KR")} /{" "}
+                {QUESTION_MAX_CHARS.toLocaleString("ko-KR")}자
+              </p>
+            ) : null}
+            <p id="composer-help" className="pointer-coarse:hidden">
               Enter는 줄바꿈, Ctrl 또는 Command + Enter는 {isFollowup ? "이어서 질문" : "조회 시작"}
             </p>
           </div>
-          <button
+          <Button
             type="submit"
-            className={styles.primaryButton}
-            aria-disabled={busy || !serviceReady || unknownSubmission !== null}
+            size="lg"
+            className="w-full sm:w-auto"
+            aria-disabled={blocked}
           >
+            {busy ? (
+              <Spinner data-icon="inline-start" aria-hidden="true" />
+            ) : (
+              <SendIcon data-icon="inline-start" aria-hidden="true" />
+            )}
             {busy ? "확인 중…" : isFollowup ? "이어서 질문" : "조회 시작"}
-          </button>
+          </Button>
         </div>
       </form>
     );
   }
 
+  const AvailabilityIcon =
+    status.tone === "danger" ? CircleAlertIcon : status.tone === "info" ? InfoIcon : CircleCheckIcon;
+
   return (
     <div
-      className={`${styles.workspace} ${styles[`workspace_${workspaceState}`]}`}
+      className={cn("mx-auto flex w-full flex-col gap-6", WORKSPACE_WIDTH[workspaceState])}
       data-state={workspaceState}
       data-ui="assistant-workspace"
     >
-      <div className={styles.statusAnnouncer} role="status" aria-live="polite">
+      <div className="sr-only" role="status" aria-live="polite">
         {statusMessage}
       </div>
 
-      <header className={styles.pageHeader}>
-        <div>
-          <p className={styles.eyebrow}>이동 접근성 조회</p>
-          <h1 id="conversation-title" ref={pageHeadingRef} tabIndex={-1}>
-            이동 가능한 경로를 확인해 보세요
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-2">
+          <h1
+            id="conversation-title"
+            ref={pageHeadingRef}
+            tabIndex={-1}
+            className={cn(
+              "font-semibold tracking-tight",
+              workspaceState === "empty" ? "text-2xl sm:text-3xl" : "text-xl sm:text-2xl",
+            )}
+          >
+            {pageTitle}
           </h1>
-          <p>{pageDescription}</p>
+          {workspaceState === "result" && latestQuestion ? (
+            <p className="text-muted-foreground">
+              <span className="sr-only">질문: </span>“{latestQuestion}”
+            </p>
+          ) : null}
+          {workspaceState === "empty" ? (
+            <p className="text-muted-foreground">
+              출발지, 목적지와 이동 조건을 자연어로 알려주세요. 확인에 필요한 조건이 빠지면 이어서
+              질문합니다.
+            </p>
+          ) : null}
         </div>
         {canStartNewLookup ? (
-          <div className={styles.pageActions}>
-            {workspaceState === "result" ? (
-              <a
-                className={styles.resultJumpLink}
-                href="#result-title"
-                onClick={() => {
-                  window.setTimeout(() => document.getElementById("result-title")?.focus(), 0);
-                }}
-              >
-                확인 결과로 이동
-              </a>
-            ) : null}
-            <button
-              type="button"
-              className={styles.secondaryButton}
-              onClick={() => void handleDeleteConversation()}
-              aria-disabled={busy}
-            >
-              새 이동 조회
-            </button>
-          </div>
+          <Button
+            variant="outline"
+            className="self-start sm:self-auto"
+            onClick={() => void handleDeleteConversation()}
+            aria-disabled={busy}
+          >
+            <RotateCcwIcon data-icon="inline-start" aria-hidden="true" />
+            새 이동 조회
+          </Button>
         ) : null}
       </header>
 
       {showAvailabilityNotice ? (
-        <section
-          className={`${styles.availabilityNotice} ${styles[`notice_${status.tone}`]}`}
+        // 상태 안내는 위쪽 status 영역이 읽어 주므로 alert 로 다시 알리지 않는다.
+        <Alert
+          role={undefined}
+          variant={status.tone === "danger" ? "destructive" : "default"}
           aria-labelledby="service-status-title"
         >
-          <div>
-            <h2 id="service-status-title">{status.title}</h2>
-            <p>{status.detail}</p>
-          </div>
+          <AvailabilityIcon aria-hidden="true" />
+          <AlertTitle>
+            <h2 id="service-status-title" className="font-semibold">
+              {status.title}
+            </h2>
+          </AlertTitle>
+          <AlertDescription>{status.detail}</AlertDescription>
           {availability === "not_ready" || availability === "fetch_error" ? (
-            <button
-              type="button"
-              className={styles.secondaryButton}
-              onClick={() => void refreshPublicStatus()}
-            >
-              상태 다시 확인
-            </button>
+            <div className="col-start-2 mt-3">
+              <Button variant="outline" onClick={() => void refreshPublicStatus()}>
+                <RefreshCwIcon data-icon="inline-start" aria-hidden="true" />
+                상태 다시 확인
+              </Button>
+            </div>
           ) : null}
-        </section>
+        </Alert>
       ) : null}
 
-      {latestRun ? <ConversationContextSummary context={latestRun.context} /> : null}
+      {/* 결과 화면에서는 결과 요약이 이동 조건을 근거와 함께 오른쪽 칸에 보여 준다. */}
+      {latestRun && workspaceState !== "result" ? (
+        <ConversationContextSummary context={latestRun.context} />
+      ) : null}
 
       {error ? (
-        <section className={styles.errorCard} role="alert" aria-labelledby="error-title">
-          <h2 id="error-title">{error.title}</h2>
-          <p>{error.message}</p>
-          {unknownSubmission ? (
-            <>
+        <Alert variant="destructive" role="alert" aria-labelledby="error-title">
+          <CircleAlertIcon aria-hidden="true" />
+          <AlertTitle>
+            <h2 id="error-title" className="font-semibold">
+              {error.title}
+            </h2>
+          </AlertTitle>
+          <AlertDescription className="flex flex-col gap-1">
+            <p>{error.message}</p>
+            {unknownSubmission ? (
               <p>
                 전송한 {unknownSubmission.phase === "start" ? "질문" : "추가 정보"}: “
                 {unknownSubmission.question}”
               </p>
-              <button
-                type="button"
-                className={styles.secondaryButton}
-                aria-disabled={busy}
-                onClick={() => void handleUnknownSubmissionCheck()}
-              >
-                접수한 요청 결과 확인
-              </button>
-            </>
-          ) : null}
-          {error.requestId || error.code ? (
-            <details>
-              <summary>문제 신고용 정보</summary>
-              {error.requestId ? (
-                <p>
-                  요청 ID: <code>{error.requestId}</code>
-                </p>
+            ) : null}
+          </AlertDescription>
+          {unknownSubmission || error.requestId || error.code ? (
+            <div className="col-start-2 mt-3 flex flex-col items-start gap-3 text-foreground">
+              {unknownSubmission ? (
+                <Button
+                  variant="outline"
+                  aria-disabled={busy}
+                  onClick={() => void handleUnknownSubmissionCheck()}
+                >
+                  접수한 요청 결과 확인
+                </Button>
               ) : null}
-              {error.code ? (
-                <p>
-                  오류 코드: <code>{error.code}</code>
-                </p>
+              {error.requestId || error.code ? (
+                <Disclosure summary="문제 신고용 정보" className="w-full">
+                  {error.requestId ? (
+                    <p>
+                      요청 ID: <code className="font-mono text-xs break-all">{error.requestId}</code>
+                    </p>
+                  ) : null}
+                  {error.code ? (
+                    <p>
+                      오류 코드: <code className="font-mono text-xs break-all">{error.code}</code>
+                    </p>
+                  ) : null}
+                </Disclosure>
               ) : null}
-            </details>
+            </div>
           ) : null}
-        </section>
+        </Alert>
       ) : null}
 
       {workspaceState === "empty" ? (
-        <section className={styles.emptyExperience} aria-label="이동 질문 시작">
-          <AstryxPanel className={styles.questionSurface} aria-labelledby="question-surface-title">
-            <div className={styles.questionIntro}>
-              <h2 id="question-surface-title">어떤 이동을 확인할까요?</h2>
-              <p>조건이 더 필요하면 확인에 필요한 내용을 이어서 질문합니다.</p>
-            </div>
-            {renderComposer("initial")}
-          </AstryxPanel>
+        <section className="flex flex-col gap-8" aria-label="이동 질문 시작">
+          <section aria-labelledby="question-surface-title">
+            <Card className="gap-5">
+              <CardHeader>
+                <CardTitle>
+                  <h2 id="question-surface-title" className="text-lg font-semibold">
+                    어떤 이동을 확인할까요?
+                  </h2>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>{renderComposer("initial")}</CardContent>
+            </Card>
+          </section>
 
-          <section className={styles.exampleSection} aria-labelledby="example-title">
-            <div>
-              <p className={styles.eyebrow}>질문 예시</p>
-              <h2 id="example-title">이렇게 물어볼 수 있어요</h2>
-            </div>
-            <div className={styles.exampleList} aria-label="예시 질문">
-              <button
-                type="button"
+          <section className="flex flex-col gap-3" aria-labelledby="example-title">
+            <h2 id="example-title" className="text-lg font-semibold">
+              이렇게 물어볼 수 있어요
+            </h2>
+            <div className="grid gap-2 sm:grid-cols-2" role="group" aria-label="예시 질문">
+              <ExampleButton
                 onClick={() =>
                   setExample("휠체어를 이용해 시청역에서 강남역까지 이동할 수 있을까요?")
                 }
               >
                 휠체어로 시청역에서 강남역까지 이동할 수 있을까요?
-              </button>
-              <button
-                type="button"
+              </ExampleButton>
+              <ExampleButton
                 onClick={() =>
                   setExample("계단을 이용할 수 없는데 서울역에서 잠실역까지 갈 수 있을까요?")
                 }
               >
                 계단을 이용할 수 없을 때의 경로를 확인하고 싶어요
-              </button>
+              </ExampleButton>
               {facilityReady ? (
-                <button
-                  type="button"
+                <ExampleButton
                   aria-label="역 시설 상태 확인"
                   onClick={() => setExample("서울역 엘리베이터가 지금 이용 가능한가요?")}
                 >
                   서울역 엘리베이터 상태를 확인하고 싶어요
-                </button>
+                </ExampleButton>
               ) : null}
             </div>
           </section>
 
-          <section className={styles.scopeSection} aria-labelledby="scope-title">
-            <div>
-              <p className={styles.eyebrow}>지원 범위</p>
-              <h2 id="scope-title">확인할 수 있는 범위와 정보의 한계</h2>
-            </div>
-            <ul>
-              <li>출발역과 도착역 사이의 이동 경로 접근성을 확인합니다.</li>
-              <li>휠체어·유모차와 계단·에스컬레이터 이용 조건을 반영합니다.</li>
-              <li>확인되지 않은 정보는 이동 가능하다고 추정하지 않습니다.</li>
-            </ul>
+          <section aria-labelledby="scope-title">
+            <Card size="sm">
+              <CardHeader>
+                <CardTitle>
+                  <h2 id="scope-title" className="text-base font-semibold">
+                    확인할 수 있는 범위와 정보의 한계
+                  </h2>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="flex flex-col gap-2 text-sm leading-6">
+                  {SCOPE_ITEMS.map((item) => (
+                    <li key={item} className="flex gap-2">
+                      <CheckIcon aria-hidden="true" className="mt-1 size-4 shrink-0 text-muted-foreground" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
           </section>
         </section>
       ) : null}
 
       {workspaceState === "clarifying" && latestRun ? (
-        <section className={styles.clarificationFlow} aria-label="추가 정보 확인">
+        <section className="flex flex-col gap-6" aria-label="추가 정보 확인">
           {renderTranscript(false)}
-          <div className={styles.clarificationMessage}>
-            <CanonicalMarkdown compact message={latestRun.user_message} />
-          </div>
+          {clarificationReply === "" ? null : (
+            <AgentMessage label="조회 응답" message={clarificationReply} />
+          )}
           {preservedClarificationDraft ? (
-            <details className={styles.preservedDraft}>
-              <summary>자동 재전송하지 않은 이전 입력</summary>
+            <Disclosure summary="자동 재전송하지 않은 이전 입력">
               <p>{preservedClarificationDraft.displayValue}</p>
-              <small>
-                이전 추가 질문 ID: <code>{preservedClarificationDraft.clarificationId}</code>
+              <small className="text-xs text-muted-foreground">
+                이전 추가 질문 ID:{" "}
+                <code className="font-mono break-all">{preservedClarificationDraft.clarificationId}</code>
               </small>
-            </details>
+            </Disclosure>
           ) : null}
           {activeClarification && unknownSubmission === null ? (
             <ClarificationForm
@@ -851,19 +962,50 @@ export function AssistantWorkspace() {
               onSubmit={handleClarification}
             />
           ) : null}
-          <p className={styles.lockedComposerNotice}>
+          <p className="flex items-center gap-2 text-sm text-muted-foreground">
+            <LockIcon aria-hidden="true" className="size-4 shrink-0" />
             추가 질문을 확인하는 동안 새 질문 입력은 잠겨 있습니다.
           </p>
         </section>
       ) : null}
 
       {workspaceState === "result" && latestRun ? (
-        <div className={styles.resultExperience}>
+        <div className="flex flex-col gap-6">
           <ResultSummary run={latestRun} />
-          {renderComposer("followup")}
+          <Card>
+            <CardContent>{renderComposer("followup")}</CardContent>
+          </Card>
           {renderTranscript(true)}
         </div>
       ) : null}
     </div>
+  );
+}
+
+function AgentMessage({ label, message }: { label: string; message: string }) {
+  return (
+    <Message>
+      <MessageContent>
+        <MessageHeader>{label}</MessageHeader>
+        <Bubble variant="muted" className="max-w-full sm:max-w-[90%]">
+          <BubbleContent className="px-4 py-3">
+            <CanonicalMarkdown compact message={message} />
+          </BubbleContent>
+        </Bubble>
+      </MessageContent>
+    </Message>
+  );
+}
+
+function ExampleButton({ className, ...props }: ComponentProps<typeof Button>) {
+  return (
+    <Button
+      variant="outline"
+      className={cn(
+        "h-auto min-h-11 justify-start py-3 text-left text-sm leading-6 whitespace-normal",
+        className,
+      )}
+      {...props}
+    />
   );
 }

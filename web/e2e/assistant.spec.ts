@@ -188,7 +188,7 @@ test("moves into a compact, keyboard-ready clarification state", async ({ page }
 
   await choices.first().check();
   await page.getByRole("button", { name: "입력한 정보로 계속" }).click();
-  await expect(page.getByRole("heading", { name: "확인이 완료되었습니다" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "출발 전에 확인할 점이 있습니다" })).toBeVisible();
   expect(resumeBodies).toEqual([
     {
       schema_version: "2",
@@ -230,7 +230,7 @@ test("uses the same-origin BFF and presents an 8:4 result that reflows in DOM or
   await gotoAssistant(page);
   await submitTripQuestion(page);
 
-  await expect(page.getByRole("heading", { name: "확인이 완료되었습니다" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "출발 전에 확인할 점이 있습니다" })).toBeVisible();
   await expect(page.getByText(canonicalHeadline)).toBeVisible();
   await expect(page.getByRole("region", { name: "조회 응답 표" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "판단 근거와 정보 한계" })).toBeVisible();
@@ -238,7 +238,7 @@ test("uses the same-origin BFF and presents an 8:4 result that reflows in DOM or
 
   const resultLayout = page.locator('[data-ui="result-summary"]');
   const resultBody = resultLayout.locator(":scope > section");
-  const evidence = resultLayout.locator(":scope > aside");
+  const evidence = resultLayout.locator(':scope > [data-ui="result-aside"]');
   const [resultBodyBox, evidenceBox] = await Promise.all([
     resultBody.boundingBox(),
     evidence.boundingBox(),
