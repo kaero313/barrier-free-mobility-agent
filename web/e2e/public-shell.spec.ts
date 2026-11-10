@@ -20,8 +20,9 @@ async function mockPublicStatus(
   });
 }
 
-async function expectNoAxeViolations(page: Page) {
-  const accessibility = await new AxeBuilder({ page }).analyze();
+async function expectNoAxeViolations(page: Page, include?: string) {
+  const builder = new AxeBuilder({ page });
+  const accessibility = await (include ? builder.include(include) : builder).analyze();
   expect(accessibility.violations).toEqual([]);
 }
 
@@ -121,8 +122,17 @@ test("keeps navigation and status usable at 320px and with forced colors", async
   await page.keyboard.press("Enter");
   await expect(page.locator("#main-content")).toBeFocused();
 
-  await page.getByRole("link", { name: "서비스 상태", exact: true }).click();
+  // 좁은 화면의 주요 메뉴는 사이드바 시트 안에 있다.
+  await expect(page.getByRole("navigation", { name: "주요 메뉴" })).toHaveCount(0);
+  await page.getByRole("button", { name: "사이드바 열기·닫기" }).click();
+  const menu = page.getByRole("dialog", { name: "탐색 메뉴" });
+  await expect(menu).toBeVisible();
+  // 시트 뒤 본문은 inert 라 열린 메뉴만 검사한다. forced-colors 에뮬레이션은 덮개 아래 글자의
+  // 배경을 덮개 색으로 계산해 실제로 보이지 않는 대비를 오류로 잡는다.
+  await expectNoAxeViolations(page, '[role="dialog"]');
+  await menu.getByRole("link", { name: "서비스 상태", exact: true }).click();
   await expect(page.getByRole("heading", { level: 1, name: "서비스 상태" })).toBeVisible();
+  await expect(menu).toBeHidden();
   await expectNoHorizontalOverflow(page);
   await expectNoAxeViolations(page);
 });

@@ -1,21 +1,20 @@
 import type { Metadata, Viewport } from "next";
-import { Noto_Sans_KR } from "next/font/google";
+import localFont from "next/font/local";
 import type { ReactNode } from "react";
 
-// Vendor styles are loaded once at the App Router boundary. Astryx components
-// themselves may only be imported through components/primitives/astryx-adapter.
-import "@astryxdesign/core/astryx.css";
+import { ThemeProvider } from "@/components/theme-provider";
+import { TooltipProvider } from "@/components/ui/tooltip";
+
 import "./globals.css";
 
-// Self-hosted by Next.js at build time, so the product does not depend on a
-// third-party font host at runtime or on the reader having the font installed.
-// The Korean subset is large, so it is not preloaded; `swap` keeps the first
-// paint readable with the metric-adjusted fallback.
-const notoSansKr = Noto_Sans_KR({
-  subsets: ["latin"],
-  variable: "--font-noto-sans-kr",
+// 외부 font host 와 읽는 사람 기기의 설치 폰트에 기대지 않도록 빌드 때 함께 배포한다.
+// 가변 폰트 하나로 모든 굵기를 쓴다.
+const pretendard = localFont({
+  src: "./fonts/PretendardVariable.woff2",
+  weight: "45 920",
   display: "swap",
-  preload: false,
+  variable: "--font-pretendard",
+  fallback: ["Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", "sans-serif"],
 });
 
 export const metadata: Metadata = {
@@ -27,8 +26,11 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  colorScheme: "light",
-  themeColor: "#f8fafc",
+  colorScheme: "light dark",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#020618" },
+  ],
 };
 
 type RootLayoutProps = Readonly<{
@@ -37,8 +39,12 @@ type RootLayoutProps = Readonly<{
 
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
-    <html lang="ko" className={notoSansKr.variable}>
-      <body>{children}</body>
+    <html lang="ko" suppressHydrationWarning className={`${pretendard.variable} antialiased`}>
+      <body>
+        <ThemeProvider>
+          <TooltipProvider>{children}</TooltipProvider>
+        </ThemeProvider>
+      </body>
     </html>
   );
 }
