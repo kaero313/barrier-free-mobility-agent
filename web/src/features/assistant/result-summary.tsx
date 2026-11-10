@@ -1,18 +1,68 @@
+import { InfoIcon, ShieldAlertIcon } from "lucide-react";
+
+import { Disclosure } from "@/components/disclosure";
+import { StatusIcon, type StatusTone } from "@/components/status-badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import type { ConversationRunResponse } from "@/contracts/agent";
+import { cn } from "@/lib/utils";
 
 import { CanonicalMarkdown } from "./canonical-markdown";
-import styles from "./assistant-workspace.module.css";
+import { ConversationContextSummary } from "./conversation-context-summary";
+import { conditionText, facilityTypeLabels } from "./labels";
 
 type Presentation = NonNullable<ConversationRunResponse["presentation"]>;
 type FacilityPresentation = Extract<Presentation, { kind: "facility" }>;
 type FacilityItem = FacilityPresentation["facility"]["items"][number];
+type EvidenceSource = Presentation["evidence_sources"][number];
+
+type ResultCopy = Readonly<{ title: string; tone: StatusTone }>;
 
 const statusCopy = {
-  SUCCESS: { title: "확인이 완료되었습니다", icon: "✓", tone: "success" },
-  PARTIAL: { title: "일부 정보만 확인되었습니다", icon: "!", tone: "partial" },
-  FAILED: { title: "현재 확인하지 못했습니다", icon: "×", tone: "danger" },
-  NEEDS_CLARIFICATION: { title: "추가 정보가 필요합니다", icon: "i", tone: "info" },
-} as const;
+  PARTIAL: { title: "일부 정보만 확인되었습니다", tone: "partial" },
+  FAILED: { title: "현재 확인하지 못했습니다", tone: "danger" },
+  NEEDS_CLARIFICATION: { title: "추가 정보가 필요합니다", tone: "info" },
+} as const satisfies Record<Exclude<ConversationRunResponse["status"], "SUCCESS">, ResultCopy>;
+
+// SUCCESS 는 조회를 끝냈다는 뜻일 뿐 이동 가능이 아니다. 완료 표시 대신 위험도에 맞는 제목을 쓰고,
+// 위험도를 주지 않는 결과(시설 질문 등)는 중립 제목으로 둔다.
+const successCopyByRisk = {
+  LOW: { title: "확인된 범위에서 큰 위험 요소는 없습니다", tone: "success" },
+  CAUTION: { title: "출발 전에 확인할 점이 있습니다", tone: "partial" },
+  HIGH: { title: "이동에 어려움이 예상됩니다", tone: "danger" },
+  UNKNOWN: { title: "이동 가능 여부를 판단하지 못했습니다", tone: "unknown" },
+} as const satisfies Record<
+  NonNullable<ConversationRunResponse["evidence"]["risk_level"]>,
+  ResultCopy
+>;
+
+// 결과 제목은 답변 첫 줄(큰 제목) 위에 붙는 상태 표시다. 색은 옅은 배경·테두리와 아이콘에만 쓰고
+// 글자는 본문 색으로 둔다.
+const TONE_SURFACES: Record<StatusTone, string> = {
+  success: "border-success/30 bg-success/10",
+  partial: "border-warning/35 bg-warning/10",
+  danger: "border-destructive/30 bg-destructive/10",
+  info: "border-info/30 bg-info/10",
+  unknown: "border-border bg-muted",
+};
+
+// 위험도로 제목을 정한 결과는 제목이 이미 위험도를 말하므로 근거 영역에서 다시 쓰지 않는다.
+function titleStatesRisk(run: ConversationRunResponse): boolean {
+  return run.run_status !== "failed" && run.status === "SUCCESS" && run.evidence.risk_level !== null;
+}
+
+function resultCopy(run: ConversationRunResponse): ResultCopy {
+  if (run.run_status === "failed") {
+    return { title: "조회가 중단되었습니다", tone: "danger" };
+  }
+  if (run.status !== "SUCCESS") {
+    return statusCopy[run.status];
+  }
+  const risk = run.evidence.risk_level;
+  return risk ? successCopyByRisk[risk] : { title: "조회를 마쳤습니다", tone: "info" };
+}
 
 const riskLabels = {
   LOW: "낮음",
@@ -25,16 +75,6 @@ const confidenceLabels = {
   HIGH: "높음",
   MEDIUM: "보통",
   LOW: "낮음",
-} as const;
-
-const facilityTypeLabels = {
-  ELEVATOR: "엘리베이터",
-  ESCALATOR: "에스컬레이터",
-  WHEELCHAIR_LIFT: "휠체어리프트",
-  ACCESSIBLE_RESTROOM: "장애인 화장실",
-  RESTROOM: "화장실",
-  WHEELCHAIR_CHARGER: "휠체어 충전기",
-  UNKNOWN: "시설 유형 미확인",
 } as const;
 
 const facilityStateLabels = {
@@ -75,67 +115,57 @@ function CheckedAt({ value }: { value: string | null }) {
   return <time dateTime={value}>{formatCheckedAt(value)}</time>;
 }
 
-function StatusBadge({ run }: { run: ConversationRunResponse }) {
-  if (run.run_status === "failed") {
-    return (
-      <span className={`${styles.statusBadge} ${styles.danger}`}>
-        <span aria-hidden="true">×</span> 조회 중단
-      </span>
-    );
-  }
-  const copy = statusCopy[run.status];
-  return (
-    <span className={`${styles.statusBadge} ${styles[copy.tone]}`}>
-      <span aria-hidden="true">{copy.icon}</span> {copy.title}
-    </span>
-  );
+function laterCheckedAt(first: string | null, second: string | null): string | null {
+  if (first === null) return second;
+  if (second === null) return first;
+  return new Date(second).getTime() > new Date(first).getTime() ? second : first;
 }
 
-function TripPresentation({ presentation }: { presentation: Extract<Presentation, { kind: "trip" }> }) {
+// 한 응답 안에서 같은 출처를 다시 읽은 캐시 항목은 사용자에게 별개 출처가 아니므로 이름 기준으로 합친다.
+function uniqueSources(sources: readonly EvidenceSource[]) {
+  const merged = new Map<string, { success: boolean; checkedAt: string | null }>();
+  for (const source of sources) {
+    const current = merged.get(source.display_name);
+    merged.set(source.display_name, {
+      success: (current?.success ?? false) || source.success,
+      checkedAt: laterCheckedAt(current?.checkedAt ?? null, source.checked_at),
+    });
+  }
+  return Array.from(merged, ([displayName, value]) => ({ displayName, ...value }));
+}
+
+function SafetyNotice({ notice }: { notice: string }) {
   return (
-    <section className={styles.resultSection} aria-labelledby="trip-presentation-title">
-      <h3 id="trip-presentation-title">확인된 이동 정보</h3>
-      <p className={styles.routeHeading}>
-        <span>{presentation.trip.origin}</span>
-        <span aria-hidden="true">→</span>
-        <span>{presentation.trip.destination}</span>
-      </p>
-      <p>{presentation.trip.route_summary || "경로 요약이 제공되지 않았습니다."}</p>
-      <div className={styles.safetyNotice}>
-        <strong>안전 안내</strong>
-        <p>{presentation.safety_notice || "추가 안전 안내가 제공되지 않았습니다."}</p>
-      </div>
-      {presentation.confidence_reasons.length > 0 ? (
-        <>
-          <h4>판단 근거</h4>
-          <ul className={styles.compactList}>
-            {presentation.confidence_reasons.map((reason) => (
-              <li key={reason}>{reason}</li>
-            ))}
-          </ul>
-        </>
-      ) : null}
-      <EvidenceSources sources={presentation.evidence_sources} />
-    </section>
+    // 결과와 함께 읽는 안내라 알림(role=alert)으로 다시 읽히지 않게 한다.
+    <Alert role="note">
+      <ShieldAlertIcon aria-hidden="true" />
+      <AlertTitle>안전 안내</AlertTitle>
+      <AlertDescription className="text-sm leading-6 text-foreground">{notice}</AlertDescription>
+    </Alert>
   );
 }
 
 function FacilityItemView({ item }: { item: FacilityItem }) {
   return (
-    <li className={styles.facilityItem}>
-      <div className={styles.facilityItemHeader}>
-        <strong>{facilityTypeLabels[item.facility_type]}</strong>
-        <span>{facilityStateLabels[item.answer_state]}</span>
+    <li className="flex flex-col gap-3 rounded-lg border p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <strong className="font-semibold">{facilityTypeLabels[item.facility_type]}</strong>
+        <Badge variant="outline" className="h-6 px-2.5 text-sm">
+          {facilityStateLabels[item.answer_state]}
+        </Badge>
       </div>
       {item.facilities.length > 0 ? (
-        <ul className={styles.facilityDetails}>
+        <ul className="flex flex-col gap-3 text-sm leading-6">
           {item.facilities.map((facility, index) => (
-            <li key={`${facility.station_name}-${facility.facility_type}-${index}`}>
+            <li
+              key={`${facility.station_name}-${facility.facility_type}-${index}`}
+              className="border-l-2 pl-3"
+            >
               <p>
-                <strong>{facilityStatusLabels[facility.status]}</strong>
+                <strong className="font-medium">{facilityStatusLabels[facility.status]}</strong>
                 {facility.location_description ? ` · ${facility.location_description}` : ""}
               </p>
-              <p className={styles.secondaryText}>
+              <p className="text-muted-foreground">
                 {facility.line ? `${facility.line} · ` : ""}
                 개찰구 {facility.inside_gate === null ? "위치 미확인" : facility.inside_gate ? "안쪽" : "바깥쪽"}
                 {facility.open_time ? ` · 운영 ${facility.open_time}` : ""}
@@ -144,10 +174,10 @@ function FacilityItemView({ item }: { item: FacilityItem }) {
           ))}
         </ul>
       ) : (
-        <p className={styles.secondaryText}>상세 시설 목록은 제공되지 않았습니다.</p>
+        <p className="text-sm text-muted-foreground">상세 시설 목록은 제공되지 않았습니다.</p>
       )}
       {item.truncated ? (
-        <p className={styles.secondaryText}>
+        <p className="text-sm text-muted-foreground">
           전체 {item.total_count}개 중 {item.facilities.length}개 표시
         </p>
       ) : null}
@@ -155,16 +185,32 @@ function FacilityItemView({ item }: { item: FacilityItem }) {
   );
 }
 
-function FacilityPresentationView({ presentation }: { presentation: FacilityPresentation }) {
+function FacilityPresentationView({
+  presentation,
+  showStation,
+}: {
+  presentation: FacilityPresentation;
+  showStation: boolean;
+}) {
   return (
-    <section className={styles.resultSection} aria-labelledby="facility-presentation-title">
-      <h3 id="facility-presentation-title">확인된 시설 정보</h3>
-      <p className={styles.routeHeading}>
-        <span>{presentation.facility.station_name}</span>
-        {presentation.facility.line ? <span>{presentation.facility.line}</span> : null}
-      </p>
+    <section className="flex flex-col gap-4" aria-labelledby="facility-presentation-title">
+      <h3 id="facility-presentation-title" className="flex flex-wrap items-center gap-2 text-base font-semibold">
+        <span>확인된 시설 정보</span>
+        {/* 조회 역은 보통 위의 현재 이동 조건 카드가 보여 준다. 그 카드가 없을 때만 여기서 밝힌다. */}
+        {showStation ? (
+          <>
+            <span className="text-muted-foreground">·</span>
+            <span>{presentation.facility.station_name}</span>
+            {presentation.facility.line ? (
+              <Badge variant="secondary" className="h-6 px-2.5 text-sm">
+                {presentation.facility.line}
+              </Badge>
+            ) : null}
+          </>
+        ) : null}
+      </h3>
       {presentation.facility.items.length > 0 ? (
-        <ul className={styles.facilityList}>
+        <ul className="flex flex-col gap-3">
           {presentation.facility.items.map((item) => (
             <FacilityItemView key={item.facility_type} item={item} />
           ))}
@@ -172,105 +218,16 @@ function FacilityPresentationView({ presentation }: { presentation: FacilityPres
       ) : (
         <p>시설 상세 정보가 제공되지 않았습니다.</p>
       )}
-      <div className={styles.safetyNotice}>
-        <strong>안전 안내</strong>
-        <p>{presentation.safety_notice || "추가 안전 안내가 제공되지 않았습니다."}</p>
-      </div>
-      <EvidenceSources sources={presentation.evidence_sources} />
     </section>
   );
 }
 
-function EvidenceSources({
-  sources,
-}: {
-  sources: Presentation["evidence_sources"];
-}) {
-  if (sources.length === 0) {
-    return null;
-  }
+function DetailList({ title, items }: { title: string; items: readonly string[] }) {
+  if (items.length === 0) return null;
   return (
-    <div className={styles.sourceList}>
-      <h4>확인 출처</h4>
-      <ul className={styles.compactList}>
-        {sources.map((source, index) => (
-          <li key={`${source.display_name}-${index}`}>
-            {source.display_name} · {source.success ? "확인 성공" : "확인 실패"} ·{" "}
-            <CheckedAt value={source.checked_at} />
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function Evidence({ run }: { run: ConversationRunResponse }) {
-  const evidence = run.evidence;
-  const hasDetails =
-    run.available_partial_info.length > 0 ||
-    evidence.failed_sources.length > 0 ||
-    evidence.limitations.length > 0 ||
-    evidence.unverified_parts.length > 0 ||
-    evidence.last_checked_at !== null;
-
-  return (
-    <aside className={styles.evidencePanel} aria-labelledby="evidence-title">
-      <div className={styles.evidenceHeader}>
-        <p className={styles.eyebrow}>공개된 조회 근거</p>
-        <h2 id="evidence-title">판단 근거와 정보 한계</h2>
-      </div>
-
-      <section className={styles.evidenceBlock} aria-labelledby="evidence-level-title">
-        <h3 id="evidence-level-title">판단 수준</h3>
-        <dl className={styles.definitionGrid}>
-          <dt>위험</dt>
-          <dd>{evidence.risk_level ? riskLabels[evidence.risk_level] : "제공되지 않음"}</dd>
-          <dt>신뢰</dt>
-          <dd>{evidence.confidence_level ? confidenceLabels[evidence.confidence_level] : "제공되지 않음"}</dd>
-        </dl>
-      </section>
-      {hasDetails ? (
-        <details className={styles.evidenceDetails}>
-          <summary>근거와 제한 사항 자세히 보기</summary>
-          {run.available_partial_info.length > 0 ? (
-            <EvidenceList title="부분적으로 확인된 정보" items={run.available_partial_info} />
-          ) : null}
-          {evidence.limitations.length > 0 ? (
-            <EvidenceList title="제한 사항" items={evidence.limitations} />
-          ) : null}
-          {evidence.unverified_parts.length > 0 ? (
-            <EvidenceList title="확인하지 못한 부분" items={evidence.unverified_parts} />
-          ) : null}
-          {evidence.failed_sources.length > 0 ? (
-            <div>
-              <h4>확인에 실패한 출처</h4>
-              <ul className={styles.compactList}>
-                {evidence.failed_sources.map((source, index) => (
-                  <li key={`${source.source_name}-${index}`}>
-                    {source.display_name} · {source.recoverable ? "다시 확인 가능" : "현재 복구 불가"}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-          <p>
-            마지막 확인: <CheckedAt value={evidence.last_checked_at} />
-          </p>
-        </details>
-      ) : null}
-      <details className={styles.requestDetails}>
-        <summary>문제 신고용 정보</summary>
-        <p>요청 ID: <code>{run.request_id}</code></p>
-      </details>
-    </aside>
-  );
-}
-
-function EvidenceList({ title, items }: { title: string; items: string[] }) {
-  return (
-    <div>
-      <h4>{title}</h4>
-      <ul className={styles.compactList}>
+    <div className="flex flex-col gap-1">
+      <h4 className="font-semibold">{title}</h4>
+      <ul className="ml-5 list-disc space-y-1">
         {items.map((item) => (
           <li key={item}>{item}</li>
         ))}
@@ -279,52 +236,198 @@ function EvidenceList({ title, items }: { title: string; items: string[] }) {
   );
 }
 
-export function ResultSummary({ run }: { run: ConversationRunResponse }) {
-  const isExecutionFailure = run.run_status === "failed";
-  const copy = isExecutionFailure
-    ? { title: "조회가 중단되었습니다", tone: "danger" as const }
-    : statusCopy[run.status];
+function Evidence({ run }: { run: ConversationRunResponse }) {
+  const evidence = run.evidence;
+  const presentation = run.presentation;
+  const confidenceReasons = presentation?.kind === "trip" ? presentation.confidence_reasons : [];
+  // 같은 문장이 제한 사항과 미확인 항목에 함께 오면 한 번만 보여 준다.
+  const unverifiedParts = evidence.unverified_parts.filter(
+    (part) => !evidence.limitations.includes(part),
+  );
+  // 경로를 찾지 못한 답변처럼 본문이 부분 확인 정보를 이미 그대로 담으면 상세에서 반복하지 않는다.
+  const partialInfo = run.available_partial_info.filter((info) => !run.user_message.includes(info));
+  // 판단하지 못한 결과는 제목이 이미 그렇게 말하므로 위험도·자료 신뢰도를 늘어놓지 않는다.
+  const judged = run.status !== "FAILED";
+  const riskLevel = judged && !titleStatesRisk(run) ? evidence.risk_level : null;
+  const confidenceLevel = judged ? evidence.confidence_level : null;
+  // MCP 답변 본문은 출처별 기준 시각과 제한 사항을 항상 "기준 시각·주의사항"에 담는다(MCP 답변 규칙).
+  // 그런 답변에서는 같은 내용을 접힌 상세에 다시 늘어놓지 않고, Agent가 만든 답변에서만 보여 준다.
+  const answerCarriesBasis = run.source === "mcp";
+  const sources = answerCarriesBasis ? [] : uniqueSources(presentation?.evidence_sources ?? []);
+  const facilityContext = run.context.facility;
+  const conditionProvenance = [
+    ...run.context.mobility_conditions.map(
+      (condition) => `${conditionText(condition)} · ${condition.provenance_label}`,
+    ),
+    ...(facilityContext?.target && facilityContext.target_provenance_label
+      ? [`조회 역 ${facilityContext.target.label} · ${facilityContext.target_provenance_label}`]
+      : []),
+    ...(facilityContext && facilityContext.requested_types.length > 0 && facilityContext.requested_types_provenance_label
+      ? [
+          `확인 시설 ${facilityContext.requested_types.map((type) => facilityTypeLabels[type]).join(", ")} · ${facilityContext.requested_types_provenance_label}`,
+        ]
+      : []),
+  ];
 
   return (
+    <aside className="min-w-0" aria-labelledby="evidence-title">
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            <h2 id="evidence-title" className="text-base font-semibold">
+              판단 근거와 정보 한계
+            </h2>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          {/* 시설 질문처럼 위험·신뢰 판단이 없는 결과에는 빈 값을 늘어놓지 않는다. */}
+          {riskLevel || confidenceLevel ? (
+            // 항목 이름(위험도·자료 신뢰도)만으로 뜻이 통하므로 화면에 소제목을 따로 두지 않는다.
+            <section aria-label="판단 수준">
+              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 rounded-lg bg-muted/50 p-3 text-sm">
+                {riskLevel ? (
+                  <>
+                    <dt className="text-muted-foreground">위험도</dt>
+                    <dd className="font-medium">{riskLabels[riskLevel]}</dd>
+                  </>
+                ) : null}
+                {confidenceLevel ? (
+                  <>
+                    <dt className="text-muted-foreground">자료 신뢰도</dt>
+                    <dd className="flex flex-col gap-1">
+                      <span className="font-medium">{confidenceLabels[confidenceLevel]}</span>
+                      {confidenceReasons.map((reason) => (
+                        <span key={reason} className="text-muted-foreground">
+                          {reason}
+                        </span>
+                      ))}
+                    </dd>
+                  </>
+                ) : null}
+              </dl>
+            </section>
+          ) : null}
+          <Disclosure summary="근거와 제한 사항 자세히 보기">
+            <DetailList title="부분적으로 확인된 정보" items={partialInfo} />
+            {answerCarriesBasis ? null : (
+              <DetailList title="제한 사항" items={evidence.limitations} />
+            )}
+            <DetailList title="확인하지 못한 부분" items={unverifiedParts} />
+            <DetailList
+              title="확인에 실패한 출처"
+              items={evidence.failed_sources.map(
+                (source) =>
+                  `${source.display_name} · ${source.recoverable ? "다시 확인 가능" : "현재 복구 불가"}`,
+              )}
+            />
+            <DetailList title="판단에 사용한 조건" items={conditionProvenance} />
+            {sources.length > 0 ? (
+              <div className="flex flex-col gap-1">
+                <h4 className="font-semibold">확인 출처</h4>
+                <ul className="ml-5 list-disc space-y-1">
+                  {sources.map((source) => (
+                    <li key={source.displayName}>
+                      {source.displayName} · {source.success ? "확인 성공" : "확인 실패"} ·{" "}
+                      <CheckedAt value={source.checkedAt} />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            {answerCarriesBasis ? null : (
+              <p className="text-muted-foreground">
+                마지막 확인: <CheckedAt value={evidence.last_checked_at} />
+              </p>
+            )}
+            <div className="flex flex-col gap-1 border-t pt-3 first:border-t-0 first:pt-0">
+              <h4 className="font-semibold">문제 신고용 정보</h4>
+              <p className="text-muted-foreground">
+                요청 ID: <code className="font-mono text-xs break-all">{run.request_id}</code>
+              </p>
+            </div>
+          </Disclosure>
+        </CardContent>
+      </Card>
+    </aside>
+  );
+}
+
+export function ResultSummary({ run }: { run: ConversationRunResponse }) {
+  const isExecutionFailure = run.run_status === "failed";
+  const copy = resultCopy(run);
+  // 경로 결과는 따로 그릴 구조화 정보가 없다. 출발·도착은 이동 조건 카드가, 환승 경로는 답변의
+  // "환승 정보"가 보여 주므로 경로 요약 띠를 두지 않는다. 판단에 실패한 경로 결과에는 참고 안내와
+  // 안전 안내 상자도 붙이지 않는다. 시설 결과는 실패해도 시설 목록이 참고 정보로 남는다.
+  const presentation =
+    run.status === "FAILED" && run.presentation?.kind === "trip" ? null : run.presentation;
+  // MCP 시설 답변 본문은 시설·위치·상태 표를 이미 담는다(MCP 답변 규칙). 같은 목록을 아래에
+  // 다시 그리지 않고, 본문에 그 표가 없는 Agent 답변에서만 구조화 목록을 보여 준다.
+  const facilityPresentation =
+    presentation?.kind === "facility" && run.source !== "mcp" ? presentation : null;
+  // 대부분의 답변은 안전 안내 문장을 본문에 이미 담고 있다. 본문에 없을 때만 따로 보여 준다.
+  const safetyNotice = presentation?.safety_notice.trim() ?? "";
+  const showSafetyNotice = safetyNotice !== "" && !run.user_message.includes(safetyNotice);
+
+  return (
+    // 결과 본문 2 : 이동 조건·근거 1(12열 기준 8:4)로 나누고, 좁은 화면에서는 같은 DOM 순서로 한 열이 된다.
+    // 역별 표(최소 36rem)가 본문 칸에 다 들어가는 xl부터 나눈다. 그보다 좁으면 "추가 확인" 열이
+    // 가로 스크롤 뒤로 숨는다.
     <article
-      className={styles.resultLayout}
+      className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] xl:items-start xl:gap-6"
       aria-label="이동 접근성 확인 결과"
       data-result-state={isExecutionFailure ? "execution-failed" : run.status.toLowerCase()}
       data-ui="result-summary"
     >
-      <section
-        className={`${styles.resultCard} ${styles[`card_${copy.tone}`]}`}
-        aria-labelledby="result-title"
-      >
-        <header className={styles.resultHeader}>
-          <div>
-            <p className={styles.eyebrow}>확인 결과</p>
-            <h2 id="result-title" tabIndex={-1}>
-              {copy.title}
-            </h2>
-          </div>
-          <StatusBadge run={run} />
-        </header>
+      <section className="min-w-0" aria-labelledby="result-title">
+        <Card className="gap-5">
+          <CardHeader>
+            <CardTitle>
+              <h2
+                id="result-title"
+                tabIndex={-1}
+                className={cn(
+                  "inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1 text-sm font-semibold",
+                  TONE_SURFACES[copy.tone],
+                )}
+              >
+                <StatusIcon tone={copy.tone} className="size-4" />
+                {copy.title}
+              </h2>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-6 text-base leading-7">
+            <CanonicalMarkdown message={run.user_message} />
 
-        <div className={styles.canonicalMessage}>
-          <CanonicalMarkdown message={run.user_message} />
-        </div>
+            {run.status === "FAILED" && facilityPresentation !== null ? (
+              <Alert role="note">
+                <InfoIcon aria-hidden="true" />
+                <AlertDescription className="text-sm text-foreground">
+                  판단은 완료되지 않았지만 아래 정보는 참고용으로 제공합니다.
+                </AlertDescription>
+              </Alert>
+            ) : null}
 
-        {run.status === "FAILED" && run.presentation !== null ? (
-          <p className={styles.referenceNotice}>
-            판단은 완료되지 않았지만 아래 정보는 참고용으로 제공합니다.
-          </p>
-        ) : null}
+            {showSafetyNotice ? <SafetyNotice notice={safetyNotice} /> : null}
 
-        {run.presentation?.kind === "trip" ? (
-          <TripPresentation presentation={run.presentation} />
-        ) : null}
-        {run.presentation?.kind === "facility" ? (
-          <FacilityPresentationView presentation={run.presentation} />
-        ) : null}
+            {facilityPresentation !== null ? (
+              <>
+                <Separator />
+                <FacilityPresentationView
+                  presentation={facilityPresentation}
+                  showStation={run.context.facility?.target == null}
+                />
+              </>
+            ) : null}
+          </CardContent>
+        </Card>
       </section>
 
-      <Evidence run={run} />
+      {/* 확인한 이동 조건은 근거와 함께 오른쪽 칸에 둔다. 답변이 화면 위에서 바로 시작하고, 좁은
+          화면에서는 답변 다음에 이어진다. */}
+      <div className="flex min-w-0 flex-col gap-4" data-ui="result-aside">
+        <ConversationContextSummary context={run.context} size="default" />
+        <Evidence run={run} />
+      </div>
     </article>
   );
 }
